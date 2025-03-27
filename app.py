@@ -20,7 +20,7 @@ login_manager = LoginManager()
 
 # Create the Flask application
 app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET")
+app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
 
 # Configure database
 database_url = os.environ.get("DATABASE_URL", "sqlite:///legal_analyzer.db")
@@ -42,7 +42,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 # Initialize extensions with app
 db.init_app(app)
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'web_login'
 
 # Create RESTful API
 api = Api(app)
