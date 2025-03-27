@@ -7,7 +7,11 @@ class Config:
     FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
     
     # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///legal_analyzer.db')
+    database_url = os.environ.get('DATABASE_URL')
+    # Fix for PostgreSQL URLs that start with 'postgres://'
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = database_url or 'sqlite:///legal_analyzer.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Upload settings

@@ -77,7 +77,7 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
         try:
             logger.info(f"Using OpenAI to generate brief for document {document.id}")
             
-            from services.openai_service import OpenAI
+            from openai import OpenAI
             
             # Import here to avoid circular imports
             from services.document_parser import parse_document
