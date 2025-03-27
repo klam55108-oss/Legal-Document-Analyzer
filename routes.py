@@ -48,7 +48,7 @@ def setup_web_routes(app):
             username = request.form.get('username')
             email = request.form.get('email')
             password = request.form.get('password')
-            confirm_password = request.form.get('confirm_password')
+            confirm_password = request.form.get('password_confirm')
             
             # Validate form data
             if not username or not email or not password:
@@ -76,7 +76,7 @@ def setup_web_routes(app):
             db.session.commit()
             
             flash('Registration successful! You can now log in.', 'success')
-            return redirect(url_for('login'))
+            return redirect(url_for('web_login'))
             
         return render_template('register.html')
         

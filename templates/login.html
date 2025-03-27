@@ -11,7 +11,7 @@
                     <h4 class="mb-0 text-center">Login</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('login') }}">
+                    <form method="POST" action="{{ url_for('web_login') }}">
                         <div class="mb-3">
                             <label for="email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="email" name="email" required autofocus>
@@ -33,7 +33,7 @@
                     </form>
                 </div>
                 <div class="card-footer bg-transparent text-center">
-                    <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}">Register</a></p>
+                    <p class="mb-0">Don't have an account? <a href="{{ url_for('web_register') }}">Register</a></p>
                     <p class="mt-2 mb-0"><a href="#">Forgot your password?</a></p>
                 </div>
             </div>

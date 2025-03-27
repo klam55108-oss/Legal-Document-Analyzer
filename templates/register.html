@@ -11,7 +11,7 @@
                     <h4 class="mb-0 text-center">Create an Account</h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('register') }}">
+                    <form method="POST" action="{{ url_for('web_register') }}">
                         <div class="mb-3">
                             <label for="username" class="form-label">Username</label>
                             <input type="text" class="form-control" id="username" name="username" required autofocus>
@@ -47,7 +47,7 @@
                     </form>
                 </div>
                 <div class="card-footer bg-transparent text-center">
-                    <p class="mb-0">Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+                    <p class="mb-0">Already have an account? <a href="{{ url_for('web_login') }}">Login</a></p>
                 </div>
             </div>
         </div>
