@@ -1,0 +1,223 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Dashboard</h1>
+        <a href="#uploadModal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="fas fa-upload me-2"></i> Upload Document
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card border-secondary h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">
+                        <i class="fas fa-file-alt me-2"></i> Documents
+                    </h5>
+                    <p class="display-4">{{ stats.document_count }}</p>
+                    <p class="text-muted">Total documents uploaded</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-secondary h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">
+                        <i class="fas fa-file-contract me-2"></i> Briefs
+                    </h5>
+                    <p class="display-4">{{ stats.brief_count }}</p>
+                    <p class="text-muted">Generated legal briefs</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card border-secondary h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Outdated Statutes
+                    </h5>
+                    <p class="display-4">{{ stats.outdated_statutes }}</p>
+                    <p class="text-muted">Statutes requiring attention</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Documents -->
+    <div class="card border-secondary mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Documents</h5>
+            <a href="{{ url_for('documents') }}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Uploaded</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_documents.count() > 0 %}
+                            {% for document in recent_documents %}
+                            <tr>
+                                <td>{{ document.original_filename }}</td>
+                                <td>{{ document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    {% if document.processed %}
+                                        <span class="badge bg-success">Processed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Processing</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('document_detail', document_id=document.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('download_file', filename=document.filename) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No documents uploaded yet</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Briefs -->
+    <div class="card border-secondary mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Briefs</h5>
+            <a href="{{ url_for('briefs') }}" class="btn btn-sm btn-outline-primary">View All</a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Document</th>
+                            <th>Generated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if recent_briefs.count() > 0 %}
+                            {% for brief in recent_briefs %}
+                            <tr>
+                                <td>{{ brief.title }}</td>
+                                <td>{{ brief.document.original_filename }}</td>
+                                <td>{{ brief.generated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('brief_detail', brief_id=brief.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No briefs generated yet</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#uploadModal" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                            <i class="fas fa-upload me-2"></i> Upload New Document
+                        </a>
+                        <a href="{{ url_for('documents') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-file-alt me-2"></i> Manage Documents
+                        </a>
+                        <a href="{{ url_for('briefs') }}" class="btn btn-outline-success">
+                            <i class="fas fa-file-contract me-2"></i> View All Briefs
+                        </a>
+                        <a href="{{ url_for('api_docs') }}" class="btn btn-outline-info">
+                            <i class="fas fa-code me-2"></i> API Documentation
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Document Processing
+                            <span class="badge bg-success">Online</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Brief Generation
+                            <span class="badge bg-success">Online</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Statute Verification
+                            <span class="badge bg-success">Online</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            API Services
+                            <span class="badge bg-success">Online</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadModalLabel">Upload Legal Document</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('documents') }}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Select Document</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                        <div class="form-text">Supported formats: PDF, DOCX, DOC, TXT, RTF</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Upload & Analyze</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

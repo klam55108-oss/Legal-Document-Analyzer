@@ -1,0 +1,155 @@
+{% extends "layout.html" %}
+
+{% block title %}Legal Document Analyzer - AI-Powered Legal Document Analysis{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Hero Section -->
+    <div class="px-4 py-5 my-5 text-center">
+        <h1 class="display-4 fw-bold">AI-Powered Legal Document Analysis</h1>
+        <div class="col-lg-8 mx-auto">
+            <p class="lead mb-4">
+                Analyze legal documents, generate briefs, and verify statute currency automatically. 
+                Streamline your legal workflow with our advanced AI solution.
+            </p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                        Go to Dashboard
+                    </a>
+                    <a href="{{ url_for('documents') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        My Documents
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('web_login') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                        Sign In
+                    </a>
+                    <a href="{{ url_for('web_register') }}" class="btn btn-outline-secondary btn-lg px-4">
+                        Register
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row g-4 py-5 row-cols-1 row-cols-lg-3">
+        <div class="col d-flex align-items-start">
+            <div class="icon-square text-body-emphasis bg-body-secondary d-inline-flex align-items-center justify-content-center fs-4 flex-shrink-0 me-3">
+                <i class="fas fa-file-alt"></i>
+            </div>
+            <div>
+                <h3 class="fs-2">Document Analysis</h3>
+                <p>Upload legal documents in various formats (PDF, DOCX, TXT) for intelligent analysis using advanced NLP techniques.</p>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="icon-square text-body-emphasis bg-body-secondary d-inline-flex align-items-center justify-content-center fs-4 flex-shrink-0 me-3">
+                <i class="fas fa-gavel"></i>
+            </div>
+            <div>
+                <h3 class="fs-2">Statute Verification</h3>
+                <p>Automatically check if statutes referenced in your documents are current by connecting to legal databases.</p>
+            </div>
+        </div>
+        <div class="col d-flex align-items-start">
+            <div class="icon-square text-body-emphasis bg-body-secondary d-inline-flex align-items-center justify-content-center fs-4 flex-shrink-0 me-3">
+                <i class="fas fa-file-contract"></i>
+            </div>
+            <div>
+                <h3 class="fs-2">Brief Generation</h3>
+                <p>Generate comprehensive briefs from your legal documents, highlighting key points and legal references.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Integration Section -->
+    <div class="row py-5">
+        <div class="col-lg-6">
+            <h2 class="fs-1">Seamless Integration</h2>
+            <p class="lead">Use our API to integrate legal document analysis into your existing workflow.</p>
+            <ul class="list-unstyled">
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Microsoft Word Integration</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Document Management Systems</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Legal Practice Software</li>
+                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Custom Workflow Solutions</li>
+            </ul>
+            <a href="{{ url_for('api_docs') if current_user.is_authenticated else url_for('web_register') }}" class="btn btn-outline-primary mt-3">
+                Learn About Our API
+            </a>
+        </div>
+        <div class="col-lg-6">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header">API Integration Example</div>
+                <div class="card-body">
+                    <pre class="bg-dark text-light p-3"><code>// Example API Call
+const response = await fetch('https://api.legaldocanalyzer.com/documents', {
+    method: 'POST',
+    headers: {
+        'X-API-Key': 'your_api_key',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        document_id: 123,
+        analyze: true
+    })
+});</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Testimonials -->
+    <div class="row py-5">
+        <h2 class="text-center mb-4">What Legal Professionals Say</h2>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-secondary">
+                <div class="card-body">
+                    <p class="card-text fst-italic">"This tool has revolutionized our document review process. What used to take hours now takes minutes."</p>
+                    <div class="d-flex align-items-center mt-3">
+                        <div>
+                            <h5 class="card-title mb-0">Sarah J.</h5>
+                            <p class="text-muted small">Corporate Counsel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-secondary">
+                <div class="card-body">
+                    <p class="card-text fst-italic">"The statute verification feature alone has saved us from potential compliance issues multiple times."</p>
+                    <div class="d-flex align-items-center mt-3">
+                        <div>
+                            <h5 class="card-title mb-0">Michael T.</h5>
+                            <p class="text-muted small">Regulatory Attorney</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-secondary">
+                <div class="card-body">
+                    <p class="card-text fst-italic">"Integrating this with our firm's workflow tools was seamless. The API is well-documented and easy to use."</p>
+                    <div class="d-flex align-items-center mt-3">
+                        <div>
+                            <h5 class="card-title mb-0">David L.</h5>
+                            <p class="text-muted small">Legal Tech Director</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="p-5 mb-4 rounded-3 text-center">
+        <div class="container-fluid py-5">
+            <h2 class="display-5 fw-bold">Ready to streamline your legal workflow?</h2>
+            <p class="fs-4">Join thousands of legal professionals who are saving time and improving accuracy.</p>
+            <a href="{{ url_for('web_register') }}" class="btn btn-primary btn-lg">Get Started Today</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

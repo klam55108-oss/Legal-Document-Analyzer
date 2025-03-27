@@ -1,0 +1,217 @@
+{% extends "layout.html" %}
+
+{% block title %}Brief: {{ brief.title }} - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('briefs') }}">Briefs</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ brief.title }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>{{ brief.title }}</h1>
+            <p class="text-muted">
+                Generated on {{ brief.generated_at.strftime('%B %d, %Y at %H:%M') }} | 
+                Source: <a href="{{ url_for('document_detail', document_id=brief.document_id) }}">{{ document.original_filename }}</a>
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
+                <a href="#" class="btn btn-outline-primary" id="downloadPdf">
+                    <i class="fas fa-file-pdf me-2"></i> Download PDF
+                </a>
+                <a href="#" class="btn btn-outline-info" id="downloadDocx">
+                    <i class="fas fa-file-word me-2"></i> Download Word
+                </a>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBriefModal">
+                    <i class="fas fa-trash me-2"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Brief Content -->
+            <div class="card border-secondary mb-4">
+                <div class="card-body brief-content">
+                    {% if brief.content.startswith('#') %}
+                        <!-- Render markdown content -->
+                        <div id="briefMarkdown"></div>
+                    {% else %}
+                        {{ brief.content|safe }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Brief Summary -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Brief Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ brief.summary }}</p>
+                </div>
+            </div>
+            
+            <!-- Document Info -->
+            <div class="card border-secondary mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Source Document</h5>
+                </div>
+                <div class="card-body">
+                    <h6>{{ document.original_filename }}</h6>
+                    <p class="text-muted small">
+                        Uploaded: {{ document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}<br>
+                        Size: 
+                        {% set size_kb = document.file_size / 1024 %}
+                        {% if size_kb < 1024 %}
+                            {{ "%.1f"|format(size_kb) }} KB
+                        {% else %}
+                            {{ "%.1f"|format(size_kb / 1024) }} MB
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('document_detail', document_id=document.id) }}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fas fa-file-alt me-2"></i> View Document Details
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Related Statutes -->
+            {% if statutes %}
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <h5 class="mb-0">Referenced Statutes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for statute in statutes %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ statute.reference }}</span>
+                                <span class="badge {% if statute.is_current %}bg-success{% else %}bg-danger{% endif %}">
+                                    {{ 'Current' if statute.is_current else 'Outdated' }}
+                                </span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delete Brief Modal -->
+<div class="modal fade" id="deleteBriefModal" tabindex="-1" aria-labelledby="deleteBriefModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteBriefModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this brief?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_brief', brief_id=brief.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete Brief</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include Marked.js for Markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Render markdown if content is markdown
+        const briefMarkdown = document.getElementById('briefMarkdown');
+        if (briefMarkdown) {
+            // Get the brief content from the server
+            const briefContent = `{{ brief.content|safe }}`;
+            // Render the markdown
+            briefMarkdown.innerHTML = marked.parse(briefContent);
+        }
+        
+        // PDF download - placeholder functionality
+        const pdfButton = document.getElementById('downloadPdf');
+        if (pdfButton) {
+            pdfButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // In a real implementation, this would call an API endpoint to generate and download a PDF
+                alert('PDF generation would be implemented here.');
+                
+                // Example API call (commented out)
+                /*
+                fetch('/api/briefs/{{ brief.id }}/pdf', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + API_TOKEN
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = '{{ brief.title }}.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => console.error('Error generating PDF:', error));
+                */
+            });
+        }
+        
+        // Word document download - placeholder functionality
+        const docxButton = document.getElementById('downloadDocx');
+        if (docxButton) {
+            docxButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // In a real implementation, this would call an API endpoint to generate and download a DOCX
+                alert('Word document generation would be implemented here.');
+                
+                // Example API call (commented out)
+                /*
+                fetch('/api/briefs/{{ brief.id }}/docx', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + API_TOKEN
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = '{{ brief.title }}.docx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => console.error('Error generating Word document:', error));
+                */
+            });
+        }
+    });
+</script>
+{% endblock %}

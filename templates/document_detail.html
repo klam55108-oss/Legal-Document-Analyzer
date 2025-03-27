@@ -1,0 +1,306 @@
+{% extends "layout.html" %}
+
+{% block title %}Document Details - {{ document.original_filename }} - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('documents') }}">Documents</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ document.original_filename }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>{{ document.original_filename }}</h1>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group" role="group">
+                <a href="{{ url_for('download_file', filename=document.filename) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-download me-2"></i> Download
+                </a>
+                {% if document.processed %}
+                <a href="#generateBriefModal" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#generateBriefModal">
+                    <i class="fas fa-file-contract me-2"></i> Generate Brief
+                </a>
+                {% endif %}
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteDocumentModal">
+                    <i class="fas fa-trash me-2"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Document Info Card -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Document Information</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Status:</dt>
+                        <dd class="col-sm-7">
+                            {% if document.processed %}
+                                <span class="badge bg-success">Processed</span>
+                            {% elif document.processing_error %}
+                                <span class="badge bg-danger">Error</span>
+                            {% else %}
+                                <span class="badge bg-warning">Processing</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-5">File Size:</dt>
+                        <dd class="col-sm-7">
+                            {% set size_kb = document.file_size / 1024 %}
+                            {% if size_kb < 1024 %}
+                                {{ "%.1f"|format(size_kb) }} KB
+                            {% else %}
+                                {{ "%.1f"|format(size_kb / 1024) }} MB
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-5">Type:</dt>
+                        <dd class="col-sm-7">{{ document.content_type }}</dd>
+                        
+                        <dt class="col-sm-5">Uploaded:</dt>
+                        <dd class="col-sm-7">{{ document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                        
+                        {% if document.processed %}
+                        <dt class="col-sm-5">Document Type:</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-secondary">{{ document.document_type|default('Unknown') }}</span>
+                        </dd>
+                        {% endif %}
+                        
+                        {% if document.processing_error %}
+                        <dt class="col-sm-5">Error:</dt>
+                        <dd class="col-sm-7 text-danger">{{ document.processing_error }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8 mb-4">
+            {% if document.processing_error %}
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-triangle me-2"></i> Processing Error</h5>
+                <p>{{ document.processing_error }}</p>
+                <hr>
+                <p class="mb-0">
+                    Try uploading a different file or contact support if the problem persists.
+                    <a href="#uploadModal" class="btn btn-danger btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                        <i class="fas fa-upload me-1"></i> Try Again
+                    </a>
+                </p>
+            </div>
+            {% elif not document.processed %}
+            <div class="alert alert-warning">
+                <h5><i class="fas fa-cog fa-spin me-2"></i> Document Processing</h5>
+                <p>Your document is currently being processed. This may take a few minutes depending on the document size and complexity.</p>
+                <div class="progress mt-2">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 75%"></div>
+                </div>
+                <p class="mt-2 mb-0">
+                    <small>Refresh the page to check the latest status.</small>
+                    <a href="{{ url_for('document_detail', document_id=document.id) }}" class="btn btn-warning btn-sm ms-2">
+                        <i class="fas fa-sync-alt me-1"></i> Refresh
+                    </a>
+                </p>
+            </div>
+            {% else %}
+            <!-- Document Analysis Results Tabs -->
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="documentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="statutes-tab" data-bs-toggle="tab" data-bs-target="#statutes" type="button" role="tab" aria-controls="statutes" aria-selected="true">
+                                Statutes
+                                <span class="badge bg-primary rounded-pill ms-1">{{ statutes|length }}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="briefs-tab" data-bs-toggle="tab" data-bs-target="#briefs" type="button" role="tab" aria-controls="briefs" aria-selected="false">
+                                Briefs
+                                <span class="badge bg-primary rounded-pill ms-1">{{ briefs|length }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="documentTabsContent">
+                        <!-- Statutes Tab -->
+                        <div class="tab-pane fade show active" id="statutes" role="tabpanel" aria-labelledby="statutes-tab">
+                            <div class="statute-alerts"></div>
+                            
+                            {% if statutes %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            Statutes and Regulations Referenced
+                                        </h5>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-primary" id="verifyAllStatutes">
+                                                <i class="fas fa-sync-alt me-1"></i> Verify All
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p class="text-muted small">
+                                        <i class="fas fa-info-circle me-1"></i> 
+                                        Legal references found in the document are checked against legal databases to verify if they are current.
+                                    </p>
+                                </div>
+                                
+                                <div class="list-group">
+                                    {% for statute in statutes %}
+                                    <div class="list-group-item list-group-item-action {% if statute.is_current %}statute-current{% else %}statute-outdated{% endif %}">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ statute.reference }}</h6>
+                                            <span class="statute-status-{{ statute.id }} badge {% if statute.is_current %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ 'Current' if statute.is_current else 'Outdated' }}
+                                            </span>
+                                        </div>
+                                        <p class="mb-1 text-muted small">{{ statute.content }}</p>
+                                        <small>
+                                            Verified: {{ statute.verified_at.strftime('%Y-%m-%d %H:%M') }} 
+                                            {% if statute.source_database %}
+                                                via {{ statute.source_database }}
+                                            {% endif %}
+                                            <button class="btn btn-sm btn-outline-secondary float-end verify-statute" data-statute-id="{{ statute.id }}">
+                                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                                Verify Again
+                                            </button>
+                                        </small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-gavel fa-3x text-muted mb-3"></i>
+                                    <p>No statutes or regulations were identified in this document.</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Briefs Tab -->
+                        <div class="tab-pane fade" id="briefs" role="tabpanel" aria-labelledby="briefs-tab">
+                            {% if briefs %}
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0">Generated Legal Briefs</h5>
+                                    <a href="#generateBriefModal" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#generateBriefModal">
+                                        <i class="fas fa-plus me-1"></i> New Brief
+                                    </a>
+                                </div>
+                                
+                                <div class="list-group">
+                                    {% for brief in briefs %}
+                                    <a href="{{ url_for('brief_detail', brief_id=brief.id) }}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ brief.title }}</h6>
+                                            <small>{{ brief.generated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                        </div>
+                                        <p class="mb-1">{{ brief.summary }}</p>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-file-contract fa-3x text-muted mb-3"></i>
+                                    <p>No briefs have been generated for this document yet.</p>
+                                    <a href="#generateBriefModal" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#generateBriefModal">
+                                        <i class="fas fa-plus me-2"></i> Generate Brief
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Generate Brief Modal -->
+<div class="modal fade" id="generateBriefModal" tabindex="-1" aria-labelledby="generateBriefModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateBriefModalLabel">Generate Brief</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="generateBriefForm" action="{{ url_for('generate_brief', document_id=document.id) }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="briefTitle" class="form-label">Brief Title (Optional)</label>
+                        <input type="text" class="form-control" id="briefTitle" name="title" placeholder="Leave blank for auto-generated title">
+                    </div>
+                    <div class="mb-3">
+                        <label for="focusAreas" class="form-label">Focus Areas (Optional)</label>
+                        <textarea class="form-control" id="focusAreas" name="focus_areas" rows="3" placeholder="Enter specific legal areas to focus on, one per line"></textarea>
+                        <div class="form-text">E.g., "Contract liability", "Fourth Amendment concerns", etc.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Generate Brief</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Document Modal -->
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteDocumentModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ document.original_filename }}</strong>?</p>
+                <p class="text-danger">This action cannot be undone. All associated briefs and statute verifications will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('delete_document', document_id=document.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete Document</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Verify all statutes button
+        const verifyAllButton = document.getElementById('verifyAllStatutes');
+        if (verifyAllButton) {
+            verifyAllButton.addEventListener('click', async function() {
+                // Disable button and show loading
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Verifying...';
+                
+                // Get all verify buttons and click them one by one
+                const verifyButtons = document.querySelectorAll('.verify-statute');
+                for (const button of verifyButtons) {
+                    button.click();
+                    // Small delay to prevent rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Re-enable button when done
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Verify All';
+            });
+        }
+    });
+</script>
+{% endblock %}

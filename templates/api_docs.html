@@ -1,0 +1,665 @@
+{% extends "layout.html" %}
+
+{% block title %}API Documentation - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">API Documentation</h1>
+    
+    <!-- API Key Section -->
+    <div class="card border-secondary mb-5">
+        <div class="card-header">
+            <h5 class="mb-0">Your API Key</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Your API key grants access to the Legal Document Analyzer API. Keep it secure and do not share it.
+            </div>
+            
+            <div class="api-key-container mb-3">
+                <input type="text" class="form-control api-key-field" id="apiKey" value="{{ api_key }}" readonly>
+                <button class="btn btn-outline-secondary api-key-copy" id="apiKeyCopy">Copy</button>
+            </div>
+            
+            <div class="d-flex justify-content-end">
+                <form action="{{ url_for('api.regenerate_key') }}" method="post" onsubmit="return confirm('Are you sure you want to regenerate your API key? This will invalidate your current key immediately.');">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-sync-alt me-2"></i> Regenerate API Key
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- API Overview -->
+    <div class="card border-secondary mb-5">
+        <div class="card-header">
+            <h5 class="mb-0">API Overview</h5>
+        </div>
+        <div class="card-body">
+            <p>The Legal Document Analyzer API allows you to integrate legal document analysis into your applications and workflows. With this API, you can:</p>
+            
+            <ul>
+                <li>Upload legal documents for analysis</li>
+                <li>Extract statutes and legal references</li>
+                <li>Verify statute currency against legal databases</li>
+                <li>Generate legal briefs from documents</li>
+                <li>Manage your documents and briefs</li>
+            </ul>
+            
+            <h6 class="mt-4 mb-3">Base URL</h6>
+            <pre><code>https://{{ request.host }}</code></pre>
+            
+            <h6 class="mt-4 mb-3">Authentication</h6>
+            <p>All API requests must include your API key in one of the following ways:</p>
+            
+            <ol>
+                <li>
+                    <strong>Header Authentication</strong> (Recommended)
+                    <pre><code>X-API-Key: your_api_key</code></pre>
+                </li>
+                <li>
+                    <strong>Bearer Token</strong>
+                    <pre><code>Authorization: Bearer your_api_key</code></pre>
+                </li>
+            </ol>
+        </div>
+    </div>
+    
+    <!-- Document Endpoints -->
+    <h2 class="mb-3">Document Endpoints</h2>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-get">GET</span>
+            <span class="api-url">/api/documents</span>
+        </div>
+        <div class="card-body">
+            <h5>List Documents</h5>
+            <p>Returns a list of documents uploaded by the authenticated user.</p>
+            
+            <h6 class="mt-4">Query Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>page</code></td>
+                        <td>integer</td>
+                        <td>Page number (default: 1)</td>
+                    </tr>
+                    <tr>
+                        <td><code>per_page</code></td>
+                        <td>integer</td>
+                        <td>Items per page (default: 10, max: 100)</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "items": [
+    {
+      "id": 123,
+      "filename": "contract_2023.pdf",
+      "size": 1024567,
+      "content_type": "application/pdf",
+      "uploaded_at": "2023-06-15T14:32:10",
+      "processed": true,
+      "processing_error": null
+    },
+    ...
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 10,
+    "total": 42,
+    "pages": 5
+  }
+}</code></pre>
+        </div>
+    </div>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-post">POST</span>
+            <span class="api-url">/api/documents</span>
+        </div>
+        <div class="card-body">
+            <h5>Upload Document</h5>
+            <p>Uploads a new document for analysis.</p>
+            
+            <h6 class="mt-4">Request Body</h6>
+            <p>Must be a <code>multipart/form-data</code> request with a <code>file</code> field containing the document to upload.</p>
+            
+            <h6 class="mt-4">Supported File Types</h6>
+            <ul>
+                <li>PDF (<code>.pdf</code>)</li>
+                <li>Microsoft Word (<code>.doc</code>, <code>.docx</code>)</li>
+                <li>Text (<code>.txt</code>)</li>
+                <li>Rich Text Format (<code>.rtf</code>)</li>
+            </ul>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "id": 124,
+  "filename": "legal_brief_2023.pdf",
+  "message": "Document uploaded and processed successfully",
+  "statutes_found": 8
+}</code></pre>
+        </div>
+    </div>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-get">GET</span>
+            <span class="api-url">/api/documents/{document_id}</span>
+        </div>
+        <div class="card-body">
+            <h5>Get Document Details</h5>
+            <p>Returns detailed information about a specific document.</p>
+            
+            <h6 class="mt-4">Path Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>document_id</code></td>
+                        <td>integer</td>
+                        <td>The ID of the document</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "id": 123,
+  "filename": "contract_2023.pdf",
+  "size": 1024567,
+  "content_type": "application/pdf",
+  "uploaded_at": "2023-06-15T14:32:10",
+  "processed": true,
+  "processing_error": null,
+  "briefs": [
+    {
+      "id": 45,
+      "title": "Contract Analysis Brief",
+      "generated_at": "2023-06-15T15:03:22"
+    }
+  ],
+  "statutes": [
+    {
+      "id": 112,
+      "reference": "12 U.S.C. § 1701",
+      "is_current": true,
+      "verified_at": "2023-06-15T14:35:17"
+    },
+    ...
+  ]
+}</code></pre>
+        </div>
+    </div>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-delete">DELETE</span>
+            <span class="api-url">/api/documents/{document_id}</span>
+        </div>
+        <div class="card-body">
+            <h5>Delete Document</h5>
+            <p>Deletes a document and all associated data (briefs, statutes, etc.).</p>
+            
+            <h6 class="mt-4">Path Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>document_id</code></td>
+                        <td>integer</td>
+                        <td>The ID of the document to delete</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "message": "Document deleted successfully"
+}</code></pre>
+        </div>
+    </div>
+    
+    <!-- Brief Endpoints -->
+    <h2 class="mb-3">Brief Endpoints</h2>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-post">POST</span>
+            <span class="api-url">/api/briefs</span>
+        </div>
+        <div class="card-body">
+            <h5>Generate Brief</h5>
+            <p>Generates a new brief from a document.</p>
+            
+            <h6 class="mt-4">Request Body</h6>
+            <pre><code>{
+  "document_id": 123,
+  "title": "Contract Analysis Brief",  // Optional
+  "focus_areas": [                     // Optional
+    "Liability clauses",
+    "Termination provisions"
+  ]
+}</code></pre>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "id": 45,
+  "title": "Contract Analysis Brief",
+  "summary": "This brief analyzes the key provisions of the contract...",
+  "document_id": 123,
+  "generated_at": "2023-06-15T15:03:22"
+}</code></pre>
+        </div>
+    </div>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-get">GET</span>
+            <span class="api-url">/api/briefs/{brief_id}</span>
+        </div>
+        <div class="card-body">
+            <h5>Get Brief Details</h5>
+            <p>Returns detailed information about a specific brief, including its full content.</p>
+            
+            <h6 class="mt-4">Path Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>brief_id</code></td>
+                        <td>integer</td>
+                        <td>The ID of the brief</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "id": 45,
+  "title": "Contract Analysis Brief",
+  "content": "# Contract Analysis Brief\n\n## Introduction\n...",
+  "summary": "This brief analyzes the key provisions of the contract...",
+  "generated_at": "2023-06-15T15:03:22",
+  "document_id": 123,
+  "document_filename": "contract_2023.pdf"
+}</code></pre>
+        </div>
+    </div>
+    
+    <!-- Statute Endpoints -->
+    <h2 class="mb-3">Statute Endpoints</h2>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-get">GET</span>
+            <span class="api-url">/api/statutes</span>
+        </div>
+        <div class="card-body">
+            <h5>List Statutes</h5>
+            <p>Returns a list of statutes referenced in the user's documents.</p>
+            
+            <h6 class="mt-4">Query Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>document_id</code></td>
+                        <td>integer</td>
+                        <td>Filter by document ID (optional)</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_current</code></td>
+                        <td>boolean</td>
+                        <td>Filter by current status (optional)</td>
+                    </tr>
+                    <tr>
+                        <td><code>page</code></td>
+                        <td>integer</td>
+                        <td>Page number (default: 1)</td>
+                    </tr>
+                    <tr>
+                        <td><code>per_page</code></td>
+                        <td>integer</td>
+                        <td>Items per page (default: 20, max: 100)</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "items": [
+    {
+      "id": 112,
+      "reference": "12 U.S.C. § 1701",
+      "is_current": true,
+      "verified_at": "2023-06-15T14:35:17",
+      "source_database": "US Code API",
+      "document_id": 123
+    },
+    ...
+  ],
+  "pagination": {
+    "page": 1,
+    "per_page": 20,
+    "total": 35,
+    "pages": 2
+  }
+}</code></pre>
+        </div>
+    </div>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-put">PUT</span>
+            <span class="api-url">/api/statutes/{statute_id}</span>
+        </div>
+        <div class="card-body">
+            <h5>Revalidate Statute</h5>
+            <p>Checks the current status of a statute against legal databases.</p>
+            
+            <h6 class="mt-4">Path Parameters</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>statute_id</code></td>
+                        <td>integer</td>
+                        <td>The ID of the statute to revalidate</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "id": 112,
+  "reference": "12 U.S.C. § 1701",
+  "is_current": true,
+  "verified_at": "2023-06-16T09:22:45",
+  "source_database": "US Code API",
+  "message": "Statute revalidated successfully"
+}</code></pre>
+        </div>
+    </div>
+    
+    <!-- Integration Endpoint -->
+    <h2 class="mb-3">Integration Endpoints</h2>
+    
+    <div class="card border-secondary mb-4 api-endpoint">
+        <div class="card-header">
+            <span class="api-method api-method-post">POST</span>
+            <span class="api-url">/api/integrations/upload</span>
+        </div>
+        <div class="card-body">
+            <h5>Upload and Analyze Document (for Third-Party Integrations)</h5>
+            <p>Special endpoint designed for use by third-party applications like Microsoft Word plugins.</p>
+            
+            <h6 class="mt-4">Request Body</h6>
+            <p>Must be a <code>multipart/form-data</code> request with a <code>file</code> field containing the document to upload.</p>
+            
+            <h6 class="mt-4">Authentication</h6>
+            <p>This endpoint requires the API key to be included in the <code>X-API-Key</code> header.</p>
+            
+            <h6 class="mt-4">Example Response</h6>
+            <pre><code>{
+  "success": true,
+  "document_id": 125,
+  "statutes": [
+    {
+      "reference": "42 U.S.C. § 2000e-2",
+      "is_current": true
+    },
+    {
+      "reference": "29 C.F.R. § 1604.11",
+      "is_current": false
+    }
+  ],
+  "message": "Document processed successfully"
+}</code></pre>
+        </div>
+    </div>
+    
+    <!-- Integration Code Examples -->
+    <h2 class="mb-4">Integration Examples</h2>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">JavaScript Example</h5>
+                </div>
+                <div class="card-body">
+                    <pre><code>// Upload a document
+async function uploadDocument(file, apiKey) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch('https://{{ request.host }}/api/documents', {
+    method: 'POST',
+    headers: {
+      'X-API-Key': apiKey
+    },
+    body: formData
+  });
+  
+  return await response.json();
+}</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Python Example</h5>
+                </div>
+                <div class="card-body">
+                    <pre><code>import requests
+
+# Upload a document
+def upload_document(file_path, api_key):
+    with open(file_path, 'rb') as file:
+        response = requests.post(
+            'https://{{ request.host }}/api/documents',
+            headers={'X-API-Key': api_key},
+            files={'file': file}
+        )
+    
+    return response.json()</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">C# Example</h5>
+                </div>
+                <div class="card-body">
+                    <pre><code>using System;
+using System.Net.Http;
+using System.IO;
+using System.Threading.Tasks;
+
+// Upload a document
+async Task&lt;string> UploadDocumentAsync(string filePath, string apiKey)
+{
+    using (var client = new HttpClient())
+    using (var content = new MultipartFormDataContent())
+    using (var fileStream = File.OpenRead(filePath))
+    {
+        client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+        
+        var fileContent = new StreamContent(fileStream);
+        content.Add(fileContent, "file", Path.GetFileName(filePath));
+        
+        var response = await client.PostAsync(
+            "https://{{ request.host }}/api/documents", 
+            content
+        );
+        
+        return await response.Content.ReadAsStringAsync();
+    }
+}</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card border-secondary h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Java Example</h5>
+                </div>
+                <div class="card-body">
+                    <pre><code>import java.io.File;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.nio.file.Files;
+
+// Upload a document
+String uploadDocument(String filePath, String apiKey) throws Exception {
+    HttpClient client = HttpClient.newBuilder().build();
+    
+    String boundary = "----" + System.currentTimeMillis();
+    File file = new File(filePath);
+    
+    String contentType = "multipart/form-data; boundary=" + boundary;
+    byte[] fileBytes = Files.readAllBytes(file.toPath());
+    
+    String content = "--" + boundary + "\r\n" +
+                    "Content-Disposition: form-data; name=\"file\"; filename=\"" + 
+                    file.getName() + "\"\r\n" +
+                    "Content-Type: application/octet-stream\r\n\r\n";
+    
+    byte[] contentBytes = content.getBytes();
+    byte[] endBytes = ("\r\n--" + boundary + "--\r\n").getBytes();
+    
+    byte[] requestBody = new byte[contentBytes.length + fileBytes.length + endBytes.length];
+    System.arraycopy(contentBytes, 0, requestBody, 0, contentBytes.length);
+    System.arraycopy(fileBytes, 0, requestBody, contentBytes.length, fileBytes.length);
+    System.arraycopy(endBytes, 0, requestBody, contentBytes.length + fileBytes.length, endBytes.length);
+    
+    HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("https://{{ request.host }}/api/documents"))
+            .header("Content-Type", contentType)
+            .header("X-API-Key", apiKey)
+            .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody))
+            .build();
+    
+    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+    return response.body();
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Microsoft Word Integration Section -->
+    <div class="card border-secondary mb-5">
+        <div class="card-header">
+            <h5 class="mb-0">Microsoft Word Integration</h5>
+        </div>
+        <div class="card-body">
+            <p>Our Microsoft Word Add-in allows you to analyze legal documents directly from Word. The add-in:</p>
+            
+            <ul>
+                <li>Analyzes the current document</li>
+                <li>Identifies and verifies statutes</li>
+                <li>Highlights outdated statutes</li>
+                <li>Generates briefs from the document</li>
+            </ul>
+            
+            <h6 class="mt-4">Installation</h6>
+            <ol>
+                <li>Download the Add-in from the Microsoft Office Store</li>
+                <li>Install the Add-in in Word</li>
+                <li>Enter your API key in the Add-in settings</li>
+            </ol>
+            
+            <div class="text-center mt-4">
+                <a href="#" class="btn btn-primary">
+                    <i class="fab fa-microsoft me-2"></i> Get the Microsoft Word Add-in
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // API Key copy functionality
+        const apiKeyCopyBtn = document.getElementById('apiKeyCopy');
+        const apiKeyInput = document.getElementById('apiKey');
+        
+        if (apiKeyCopyBtn && apiKeyInput) {
+            apiKeyCopyBtn.addEventListener('click', function() {
+                // Select the text
+                apiKeyInput.select();
+                apiKeyInput.setSelectionRange(0, 99999); // For mobile devices
+                
+                // Copy to clipboard
+                document.execCommand('copy');
+                
+                // Update button text
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                
+                // Reset button text after 2 seconds
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            });
+        }
+    });
+</script>
+{% endblock %}

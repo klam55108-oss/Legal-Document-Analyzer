@@ -1,0 +1,317 @@
+/* Custom CSS for Legal Document Analyzer */
+
+/* General Styling */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+.footer {
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    margin-top: auto;
+}
+
+/* Navigation */
+.navbar-brand i {
+    margin-right: 0.5rem;
+}
+
+/* Cards */
+.card {
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.card-header {
+    font-weight: 500;
+}
+
+/* Dashboard Stats */
+.dashboard-stat {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.dashboard-stat .icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.dashboard-stat .count {
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.dashboard-stat .label {
+    font-size: 1rem;
+    color: var(--bs-gray-500);
+}
+
+/* Document Display */
+.document-card {
+    height: 100%;
+}
+
+.document-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.document-meta {
+    color: var(--bs-gray-500);
+    font-size: 0.875rem;
+}
+
+.document-actions {
+    margin-top: 1rem;
+}
+
+/* Statutes */
+.statute-item {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.statute-current {
+    border-left: 4px solid var(--bs-success);
+}
+
+.statute-outdated {
+    border-left: 4px solid var(--bs-danger);
+}
+
+/* Brief Display */
+.brief-content {
+    padding: 1.5rem;
+    font-family: 'Georgia', serif;
+    line-height: 1.6;
+}
+
+.brief-title {
+    font-size: 1.75rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--bs-gray-500);
+}
+
+.brief-section {
+    margin-bottom: 1.5rem;
+}
+
+.brief-section-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+/* API Documentation */
+.api-endpoint {
+    margin-bottom: 2rem;
+}
+
+.api-method {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.api-method-get {
+    background-color: var(--bs-info);
+    color: var(--bs-dark);
+}
+
+.api-method-post {
+    background-color: var(--bs-success);
+    color: var(--bs-light);
+}
+
+.api-method-put {
+    background-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+.api-method-delete {
+    background-color: var(--bs-danger);
+    color: var(--bs-light);
+}
+
+.api-url {
+    font-family: monospace;
+    padding: 0.25rem;
+    background-color: var(--bs-dark);
+    border-radius: 0.25rem;
+}
+
+.api-key-container {
+    position: relative;
+}
+
+.api-key-field {
+    padding-right: 4.5rem;
+}
+
+.api-key-copy {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Code blocks */
+pre {
+    background-color: var(--bs-gray-900);
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+}
+
+code {
+    color: var(--bs-light);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Form Customization */
+.form-floating label {
+    color: var(--bs-gray-600);
+}
+
+/* Pagination */
+.pagination .page-item.active .page-link {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+/* Alerts */
+.alert-dismissible {
+    padding-right: 3rem;
+}
+
+/* Upload Form */
+.upload-area {
+    border: 2px dashed var(--bs-gray-500);
+    border-radius: 0.25rem;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: var(--bs-primary);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--bs-gray-500);
+}
+
+/* Loading Indicators */
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: spinner-border 0.75s linear infinite;
+}
+
+/* Statute validation badge */
+.validation-badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+
+/* Search box */
+.search-container {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.search-container i {
+    position: absolute;
+    top: 50%;
+    left: 0.75rem;
+    transform: translateY(-50%);
+    color: var(--bs-gray-500);
+}
+
+.search-input {
+    padding-left: 2.5rem;
+}
+
+/* Custom utility classes */
+.text-small {
+    font-size: 0.875rem;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(45deg, var(--bs-primary), var(--bs-info));
+}
+
+.bg-gradient-success {
+    background: linear-gradient(45deg, var(--bs-success), var(--bs-info));
+}
+
+.bg-gradient-danger {
+    background: linear-gradient(45deg, var(--bs-danger), var(--bs-warning));
+}
+
+/* Brief display sections */
+.brief-fact {
+    background-color: rgba(var(--bs-info-rgb), 0.1);
+    border-left: 3px solid var(--bs-info);
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}
+
+.brief-issue {
+    background-color: rgba(var(--bs-warning-rgb), 0.1);
+    border-left: 3px solid var(--bs-warning);
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}
+
+.brief-conclusion {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+    border-left: 3px solid var(--bs-success);
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border-radius: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .card-header {
+        padding: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .dashboard-stat .icon {
+        font-size: 2rem;
+    }
+    
+    .dashboard-stat .count {
+        font-size: 2rem;
+    }
+}

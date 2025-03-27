@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}500 Server Error - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="display-1 text-danger">500</h1>
+            <h2 class="mb-4">Server Error</h2>
+            
+            <div class="mb-5">
+                <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
+                <p class="lead">Sorry, something went wrong on our server. Our team has been notified and is working to fix the issue.</p>
+            </div>
+            
+            <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg px-4">
+                    <i class="fas fa-home me-2"></i> Go to Homepage
+                </a>
+                <a href="javascript:window.location.reload()" class="btn btn-outline-secondary btn-lg px-4">
+                    <i class="fas fa-sync-alt me-2"></i> Try Again
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
