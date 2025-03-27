@@ -117,6 +117,7 @@
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                 </div>
                                                 <form id="generateBriefForm" action="{{ url_for('generate_brief', document_id=document.id) }}" method="post">
+                                                    {{ form.hidden_tag() }}
                                                     <div class="modal-body">
                                                         <div class="mb-3">
                                                             <label for="briefTitle" class="form-label">Brief Title (Optional)</label>
@@ -241,6 +242,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="{{ url_for('documents') }}" method="post" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
                 <div class="modal-body">
                     <div class="upload-area mb-3">
                         <i class="fas fa-file-upload upload-icon"></i>

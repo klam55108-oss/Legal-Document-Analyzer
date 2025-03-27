@@ -8,6 +8,8 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from forms import LoginForm, RegistrationForm
+from datetime import datetime
+from services.brief_generator import generate_brief
 
 logger = logging.getLogger(__name__)
 
@@ -85,18 +87,85 @@ def setup_web_routes(app):
                               recent_briefs=recent_briefs,
                               stats=stats)
     
-    @app.route('/documents')
+    @app.route('/documents', methods=['GET', 'POST'])
     @login_required
     def documents():
         """List all documents uploaded by the user."""
+        from flask_wtf import FlaskForm
+        from flask_wtf.file import FileField, FileRequired, FileAllowed
+        from wtforms import SubmitField
+        
+        class UploadForm(FlaskForm):
+            file = FileField('Document', validators=[
+                FileRequired(),
+                FileAllowed(['pdf', 'doc', 'docx', 'txt', 'rtf'], 'Allowed formats: PDF, DOCX, DOC, TXT, RTF')
+            ])
+            submit = SubmitField('Upload & Analyze')
+        
         page = request.args.get('page', 1, type=int)
         per_page = 10
+        form = UploadForm()
+        
+        if request.method == 'POST' and form.validate_on_submit():
+            file = form.file.data
+            
+            if file and is_allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                timestamp = int(datetime.now().timestamp())
+                unique_filename = f"{timestamp}_{filename}"
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                
+                # Ensure upload directory exists
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                
+                # Save the file
+                file.save(file_path)
+                
+                # Create new document record
+                new_document = Document(
+                    filename=unique_filename,
+                    original_filename=filename,
+                    file_path=file_path,
+                    file_size=os.path.getsize(file_path),
+                    content_type=file.content_type,
+                    user_id=current_user.id
+                )
+                
+                db.session.add(new_document)
+                db.session.commit()
+                
+                # Process document in background or queue
+                try:
+                    from services.text_analysis import analyze_document
+                    from services.document_parser import parse_document
+                    
+                    # Parse document text
+                    document_text = parse_document(file_path)
+                    
+                    # Analyze the document content
+                    analysis_results = analyze_document(document_text, new_document.id)
+                    
+                    # Mark document as processed
+                    new_document.processed = True
+                    db.session.commit()
+                    
+                    flash('Document uploaded and processed successfully', 'success')
+                except Exception as e:
+                    logger.error(f"Error processing document: {str(e)}")
+                    new_document.processing_error = str(e)
+                    db.session.commit()
+                    flash('Document uploaded but could not be processed', 'warning')
+                
+                return redirect(url_for('documents'))
+            else:
+                flash('Invalid file type. Allowed types: PDF, DOCX, DOC, TXT, RTF', 'danger')
+                return redirect(request.url)
         
         documents = Document.query.filter_by(user_id=current_user.id).order_by(
             Document.uploaded_at.desc()
         ).paginate(page=page, per_page=per_page)
         
-        return render_template('documents.html', documents=documents)
+        return render_template('documents.html', documents=documents, form=form)
     
     @app.route('/documents/<int:document_id>')
     @login_required
@@ -132,6 +201,37 @@ def setup_web_routes(app):
         document = Document.query.get_or_404(brief.document_id)
         
         return render_template('brief_detail.html', brief=brief, document=document)
+        
+    @app.route('/documents/<int:document_id>/generate-brief', methods=['POST'])
+    @login_required
+    def generate_brief(document_id):
+        """Generate a legal brief from a document."""
+        from flask_wtf import FlaskForm
+        from wtforms import StringField, TextAreaField
+        
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+        
+        # Ensure document is processed
+        if not document.processed:
+            flash('Document must be processed before generating a brief', 'danger')
+            return redirect(url_for('document_detail', document_id=document.id))
+            
+        # Get form data
+        title = request.form.get('title')
+        focus_areas_text = request.form.get('focus_areas')
+        focus_areas = [area.strip() for area in focus_areas_text.split('\n')] if focus_areas_text else None
+        
+        try:
+            # Generate brief using the brief generator service
+            brief = generate_brief(document, custom_title=title, focus_areas=focus_areas)
+            
+            flash('Brief generated successfully', 'success')
+            return redirect(url_for('brief_detail', brief_id=brief.id))
+            
+        except Exception as e:
+            logger.error(f"Error generating brief: {str(e)}")
+            flash(f'Error generating brief: {str(e)}', 'danger')
+            return redirect(url_for('document_detail', document_id=document.id))
     
     @app.route('/api-docs')
     @login_required
