@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from forms import LoginForm, RegistrationForm
 from datetime import datetime
-from services.brief_generator import generate_brief
+from services.brief_generator import generate_brief as brief_generator_service
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +248,7 @@ def setup_web_routes(app):
         try:
             # Generate brief using the brief generator service
             # Note: The parameters must match exactly what the service expects
-            brief = generate_brief(document, title, focus_areas)
+            brief = brief_generator_service(document, title, focus_areas)
             
             flash('Brief generated successfully', 'success')
             return redirect(url_for('brief_detail', brief_id=brief.id))
