@@ -85,6 +85,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 // It's optional, so we don't prevent submission
                 console.log('No focus areas specified');
             }
+            
+            // Find and disable the submit button to prevent multiple submissions
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
+            }
+            
+            // Close the modal after submission
+            const modal = bootstrap.Modal.getInstance(document.getElementById('generateBriefModal'));
+            if (modal) {
+                modal.hide();
+            }
+            
+            // Show a processing message
+            const alertDiv = document.createElement('div');
+            alertDiv.classList.add('alert', 'alert-info', 'alert-dismissible', 'fade', 'show', 'mt-3');
+            alertDiv.innerHTML = `
+                <strong>Generating brief...</strong> This may take a few moments.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.querySelector('.tab-content').prepend(alertDiv);
         });
     }
     
