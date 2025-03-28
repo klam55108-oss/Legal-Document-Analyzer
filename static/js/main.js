@@ -76,13 +76,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Generate brief form validation
+    // Initialize modals properly when the page loads
+    const generateBriefModalEl = document.getElementById('generateBriefModal');
+    let generateBriefModal = null;
+    if (generateBriefModalEl) {
+        generateBriefModal = new bootstrap.Modal(generateBriefModalEl);
+    }
+    
+    // Generate brief form handling
     const generateBriefForm = document.getElementById('generateBriefForm');
     if (generateBriefForm) {
+        // Handle the submission properly
         generateBriefForm.addEventListener('submit', function(event) {
+            // Log focus areas (optional field)
             const focusAreas = document.getElementById('focusAreas').value;
             if (!focusAreas.trim()) {
-                // It's optional, so we don't prevent submission
                 console.log('No focus areas specified');
             }
             
@@ -94,9 +102,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Close the modal after submission
-            const modal = bootstrap.Modal.getInstance(document.getElementById('generateBriefModal'));
-            if (modal) {
-                modal.hide();
+            if (generateBriefModal) {
+                generateBriefModal.hide();
+            } else {
+                // Fallback method if the modal instance isn't available
+                const modalEl = document.getElementById('generateBriefModal');
+                if (modalEl) {
+                    const bsModal = bootstrap.Modal.getInstance(modalEl);
+                    if (bsModal) {
+                        bsModal.hide();
+                    } else {
+                        // Last resort - use jQuery if available
+                        if (typeof $ !== 'undefined') {
+                            $('#generateBriefModal').modal('hide');
+                        }
+                    }
+                }
             }
             
             // Show a processing message
@@ -106,7 +127,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <strong>Generating brief...</strong> This may take a few moments.
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             `;
-            document.querySelector('.tab-content').prepend(alertDiv);
+            
+            // Find a good place to add the alert
+            const tabContent = document.querySelector('.tab-content');
+            if (tabContent) {
+                tabContent.prepend(alertDiv);
+            } else {
+                // Fallback to adding it at the beginning of the main container
+                const container = document.querySelector('.container');
+                if (container) {
+                    container.prepend(alertDiv);
+                }
+            }
         });
     }
     
