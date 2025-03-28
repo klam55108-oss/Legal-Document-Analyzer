@@ -419,12 +419,58 @@ def generate_statutes_section(document):
     """Generate a section with statute references."""
     from app import db
     from models import Statute
+    from services.statute_validator import validate_statutes, revalidate_statute
+    import logging
     
+    logger = logging.getLogger(__name__)
+    
+    # Get all statutes for this document
     statutes = Statute.query.filter_by(document_id=document.id).all()
     
+    # If we have no statutes, run validation to make sure we didn't miss any
+    if not statutes:
+        logger.info(f"No statutes found for document ID {document.id}, checking if we missed any")
+        # Get the document text to analyze for statutes
+        from services.document_parser import parse_document
+        from services.text_analysis import analyze_document
+        
+        try:
+            # Parse the document to get its text
+            document_text = parse_document(document.file_path)
+            
+            # Make sure we have a string
+            if isinstance(document_text, dict):
+                document_text = document_text.get("full_text", "")
+                
+            # Analyze the document to extract statutes
+            analyze_document(document_text, document.id)
+            
+            # Get the statutes again after analysis
+            statutes = Statute.query.filter_by(document_id=document.id).all()
+            logger.info(f"Found {len(statutes)} statutes after analysis for document ID {document.id}")
+        except Exception as e:
+            logger.error(f"Error analyzing document for statutes: {str(e)}")
+    
+    # If we still have no statutes, return None
     if not statutes:
         return None
     
+    # Validate all statutes to ensure they're current
+    for statute in statutes:
+        try:
+            logger.info(f"Revalidating statute {statute.reference} for document ID {document.id}")
+            revalidate_statute(statute)
+        except Exception as e:
+            logger.error(f"Error validating statute {statute.reference}: {str(e)}")
+    
+    # Commit any validation changes
+    try:
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error committing statute validation changes: {str(e)}")
+        db.session.rollback()
+    
+    # Now generate the statute section
     statute_section = "Referenced Statutes and Regulations:\n\n"
     
     for statute in statutes:
