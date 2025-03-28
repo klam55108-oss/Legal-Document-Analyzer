@@ -179,6 +179,30 @@ def setup_web_routes(app):
                               document=document, 
                               briefs=briefs,
                               statutes=statutes)
+                              
+    @app.route('/documents/<int:document_id>/delete', methods=['POST'])
+    @login_required
+    def delete_document(document_id):
+        """Delete a document and its associated data."""
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+        
+        # Delete associated data first (to avoid foreign key constraints)
+        Brief.query.filter_by(document_id=document.id).delete()
+        Statute.query.filter_by(document_id=document.id).delete()
+        
+        # Try to delete the file from storage
+        try:
+            if os.path.exists(document.file_path):
+                os.remove(document.file_path)
+        except Exception as e:
+            logger.error(f"Error deleting file: {str(e)}")
+        
+        # Delete the document record
+        db.session.delete(document)
+        db.session.commit()
+        
+        flash('Document deleted successfully', 'success')
+        return redirect(url_for('documents'))
     
     @app.route('/briefs')
     @login_required

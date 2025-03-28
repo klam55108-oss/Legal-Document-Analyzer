@@ -20,4 +20,5 @@ dependencies = [
     "python-docx>=1.1.2",
     "spacy>=3.8.4",
     "flask-wtf>=1.2.2",
+    "wtforms>=3.2.1",
 ]
