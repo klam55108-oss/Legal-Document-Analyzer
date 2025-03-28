@@ -109,9 +109,8 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             else:
                 document_text = str(document_text)  # Fallback to string representation
     
-    # Check if we can use Claude or OpenAI
+    # Check if we can use Claude
     use_claude = has_anthropic_key()
-    use_openai = os.environ.get("OPENAI_API_KEY") is not None
     
     # Generate a title if not provided
     if custom_title:
@@ -119,10 +118,17 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     else:
         title = generate_title(document_text, document.original_filename)
     
-    # Try to use Claude first for enhanced brief generation (if available)
+    # Try to use Claude for enhanced brief generation
     if use_claude:
         try:
             logger.info(f"Using Claude to generate brief for document {document.id}")
+            
+            # Implement chunking for long documents
+            MAX_CHUNK_SIZE = 10000  # Characters per chunk
+            if len(document_text) > MAX_CHUNK_SIZE:
+                logger.info(f"Document is long ({len(document_text)} chars), truncating to {MAX_CHUNK_SIZE} chars for brief generation")
+                document_text = document_text[:MAX_CHUNK_SIZE]
+                logger.info("Note: Document was truncated due to length. Consider splitting into multiple briefs for complete analysis.")
             
             # Generate brief with Claude
             brief_content, summary = generate_brief_with_claude(document_text, title, focus_areas)
@@ -142,96 +148,9 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             
         except Exception as claude_error:
             logger.error(f"Claude API error: {str(claude_error)}")
-            logger.info("Falling back to OpenAI brief generation")
-            
-    # Try to use OpenAI for enhanced brief generation if Claude failed or unavailable
-    if use_openai:
-        try:
-            logger.info(f"Using OpenAI to generate brief for document {document.id}")
-            
-            from openai import OpenAI
-            
-            # Get API client
-            openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-            
-            # Prepare prompt for OpenAI with focus areas
-            focus_areas_text = ""
-            if focus_areas and isinstance(focus_areas, list):
-                focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
-            
-            # Prepare document text (truncate if too long)
-            doc_content = document_text[:4000] if len(document_text) > 4000 else document_text
-            
-            # Generate a brief using OpenAI
-            logger.info("Calling OpenAI API to generate brief content")
-            
-            try:
-                response = openai_client.chat.completions.create(
-                    model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                    messages=[
-                        {"role": "system", "content": "You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document."},
-                        {"role": "user", "content": f"""Create a detailed legal brief based on the following document content.
-                        
-                        Document title: {title.replace('Brief: ', '')}
-                        
-                        {focus_areas_text}
-                        
-                        Structure the brief with these sections:
-                        1. Introduction
-                        2. Factual Background
-                        3. Legal Issues
-                        4. Legal Analysis
-                        5. Conclusion
-                        
-                        Document content: {doc_content}
-                        
-                        Please format the brief in Markdown with appropriate headings.
-                        """}
-                    ],
-                    temperature=0.2,
-                    max_tokens=1000  # Reduced from 3000 to 1000 to avoid potential timeout issues
-                )
-                
-                # Get the brief content
-                openai_brief = response.choices[0].message.content
-                
-                logger.info("Brief content generated, now creating summary")
-                
-                # Generate a summary using OpenAI
-                summary_response = openai_client.chat.completions.create(
-                    model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                    messages=[
-                        {"role": "system", "content": "You are a legal brief summarizer."},
-                        {"role": "user", "content": f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{openai_brief[:1000]}"}
-                    ],
-                    temperature=0.3,
-                    max_tokens=200
-                )
-                
-                summary = summary_response.choices[0].message.content
-                
-                # Add statute references to the content
-                statutes_section = generate_statutes_section(document)
-                if statutes_section:
-                    if "## Statutory References" not in openai_brief:
-                        openai_brief += f"\n\n## Statutory References\n\n{statutes_section}\n\n"
-                
-                # Add generation note
-                openai_brief += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance. " \
-                              f"It should be reviewed for accuracy and completeness.*"
-                
-                logger.info(f"OpenAI brief generation successful for document {document.id}")
-                return title, openai_brief, summary
-                
-            except Exception as api_error:
-                logger.error(f"OpenAI API error: {str(api_error)}")
-                raise ValueError(f"OpenAI API error: {str(api_error)}")
-            
-        except Exception as e:
-            logger.error(f"Error generating brief with OpenAI: {str(e)}")
-            logger.info("Falling back to traditional brief generation")
+            logger.info("Falling back to traditional brief generation as requested by user")
     
-    # Traditional brief generation (fallback or if OpenAI is not available)
+    # Traditional brief generation (fallback if Claude is not available)
     # Initialize the brief sections
     sections = {
         'introduction': generate_introduction(document_text),
