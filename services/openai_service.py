@@ -3,6 +3,12 @@ import os
 import logging
 from openai import OpenAI
 
+# Import Anthropic for Claude
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
 # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # do not change this unless explicitly requested by the user
 
@@ -10,7 +16,100 @@ logger = logging.getLogger(__name__)
 
 # Initialize OpenAI client
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = None
+if OPENAI_API_KEY:
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Initialize Anthropic client
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+claude_client = None
+if anthropic and ANTHROPIC_API_KEY:
+    claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+def has_anthropic_key():
+    """Check if Anthropic API key is available."""
+    return claude_client is not None
+    
+def generate_brief_with_claude(document_text, title, focus_areas=None):
+    """
+    Generate a legal brief using Claude.
+    
+    Args:
+        document_text (str): The text content of the document
+        title (str): The title for the brief
+        focus_areas (list, optional): Specific legal areas to focus on
+        
+    Returns:
+        tuple: (brief_content, summary)
+    """
+    if not claude_client:
+        logger.warning("Claude API client not available")
+        raise ValueError("Claude API key not available. Please provide a valid ANTHROPIC_API_KEY.")
+    
+    try:
+        logger.info("Generating brief with Claude")
+        
+        # Prepare the focus areas text if provided
+        focus_areas_text = ""
+        if focus_areas and isinstance(focus_areas, list):
+            focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
+        
+        # Truncate document text if it's too long
+        doc_content = document_text[:10000] if len(document_text) > 10000 else document_text
+        
+        # Create the prompt for Claude
+        brief_prompt = f"""Create a detailed legal brief based on the following document content.
+        
+        Document title: {title.replace('Brief: ', '')}
+        
+        {focus_areas_text}
+        
+        Structure the brief with these sections:
+        1. Introduction
+        2. Factual Background
+        3. Legal Issues
+        4. Legal Analysis
+        5. Conclusion
+        
+        Document content: {doc_content}
+        
+        Please format the brief in Markdown with appropriate headings.
+        """
+        
+        # Generate the brief with Claude
+        brief_response = claude_client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=4000,
+            temperature=0.2,
+            system="You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document.",
+            messages=[
+                {"role": "user", "content": brief_prompt}
+            ]
+        )
+        
+        brief_content = brief_response.content[0].text
+        
+        # Now generate a summary
+        summary_prompt = f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{brief_content[:2000]}"
+        
+        summary_response = claude_client.messages.create(
+            model="claude-3-haiku-20240307",
+            max_tokens=300,
+            temperature=0.3,
+            system="You are a legal brief summarizer. Create concise summaries of legal briefs.",
+            messages=[
+                {"role": "user", "content": summary_prompt}
+            ]
+        )
+        
+        summary = summary_response.content[0].text
+        
+        logger.info("Successfully generated brief and summary with Claude")
+        return brief_content, summary
+        
+    except Exception as e:
+        logger.error(f"Error generating brief with Claude: {str(e)}")
+        raise ValueError(f"Claude API error: {str(e)}")
 
 def enhance_document_parsing(document_text, document_type=None):
     """

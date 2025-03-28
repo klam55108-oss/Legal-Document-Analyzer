@@ -31,8 +31,35 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             # Extract the full text from the enhanced document
             document_text = document_text.get("full_text", "")
         
-        # Generate the brief content
-        title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
+        try:
+            # First attempt to use the preferred method (OpenAI if available)
+            logger.info("Attempting to generate brief with primary method")
+            title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
+        except Exception as content_error:
+            # If the primary method fails, use a guaranteed fallback method
+            logger.warning(f"Primary brief generation failed: {str(content_error)}")
+            logger.info("Using guaranteed fallback method for brief generation")
+            title = custom_title or f"Brief: {document.original_filename}"
+            
+            # Create basic content with rule-based extraction
+            sections = {
+                'introduction': generate_introduction(document_text),
+                'facts': extract_facts(document_text),
+                'legal_issues': identify_legal_issues(document_text, focus_areas),
+                'analysis': generate_legal_analysis(document_text, focus_areas),
+                'conclusion': generate_conclusion(document_text)
+            }
+            
+            # Add statute references
+            statutes_section = generate_statutes_section(document)
+            if statutes_section:
+                sections['statutes'] = statutes_section
+            
+            # Format the full content
+            content = format_brief_content(title, sections)
+            
+            # Generate a summary
+            summary = generate_summary(sections)
         
         # Create the brief in the database
         from app import db
