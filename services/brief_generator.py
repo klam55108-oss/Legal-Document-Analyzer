@@ -3,7 +3,7 @@ import os
 from models import Brief, Document
 from datetime import datetime
 import re
-from services.openai_service import extract_legal_entities, generate_document_summary
+from services.openai_service import extract_legal_entities, generate_document_summary, has_anthropic_key, generate_brief_with_claude
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,8 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             else:
                 document_text = str(document_text)  # Fallback to string representation
     
-    # Check if we can use OpenAI
+    # Check if we can use Claude or OpenAI
+    use_claude = has_anthropic_key()
     use_openai = os.environ.get("OPENAI_API_KEY") is not None
     
     # Generate a title if not provided
@@ -118,7 +119,32 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     else:
         title = generate_title(document_text, document.original_filename)
     
-    # Try to use OpenAI for enhanced brief generation
+    # Try to use Claude first for enhanced brief generation (if available)
+    if use_claude:
+        try:
+            logger.info(f"Using Claude to generate brief for document {document.id}")
+            
+            # Generate brief with Claude
+            brief_content, summary = generate_brief_with_claude(document_text, title, focus_areas)
+            
+            # Add statute references to the content
+            statutes_section = generate_statutes_section(document)
+            if statutes_section:
+                if "## Statutory References" not in brief_content:
+                    brief_content += f"\n\n## Statutory References\n\n{statutes_section}\n\n"
+            
+            # Add generation note
+            brief_content += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance (Claude). " \
+                          f"It should be reviewed for accuracy and completeness.*"
+            
+            logger.info(f"Claude brief generation successful for document {document.id}")
+            return title, brief_content, summary
+            
+        except Exception as claude_error:
+            logger.error(f"Claude API error: {str(claude_error)}")
+            logger.info("Falling back to OpenAI brief generation")
+            
+    # Try to use OpenAI for enhanced brief generation if Claude failed or unavailable
     if use_openai:
         try:
             logger.info(f"Using OpenAI to generate brief for document {document.id}")
