@@ -247,7 +247,8 @@ def setup_web_routes(app):
         
         try:
             # Generate brief using the brief generator service
-            brief = generate_brief(document, custom_title=title, focus_areas=focus_areas)
+            # Note: The parameters must match exactly what the service expects
+            brief = generate_brief(document, title, focus_areas)
             
             flash('Brief generated successfully', 'success')
             return redirect(url_for('brief_detail', brief_id=brief.id))
