@@ -226,6 +226,19 @@ def setup_web_routes(app):
         
         return render_template('brief_detail.html', brief=brief, document=document)
         
+    @app.route('/briefs/<int:brief_id>/delete', methods=['POST'])
+    @login_required
+    def delete_brief(brief_id):
+        """Delete a brief."""
+        brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
+        
+        # Delete the brief
+        db.session.delete(brief)
+        db.session.commit()
+        
+        flash('Brief deleted successfully', 'success')
+        return redirect(url_for('briefs'))
+        
     @app.route('/documents/<int:document_id>/generate-brief', methods=['POST'])
     @login_required
     def generate_brief(document_id):
