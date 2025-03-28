@@ -26,6 +26,11 @@ def generate_brief(document, custom_title=None, focus_areas=None):
         from services.document_parser import parse_document
         document_text = parse_document(document.file_path)
         
+        # Check if we got a dictionary or string
+        if isinstance(document_text, dict):
+            # Extract the full text from the enhanced document
+            document_text = document_text.get("full_text", "")
+        
         # Generate the brief content
         title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
         
