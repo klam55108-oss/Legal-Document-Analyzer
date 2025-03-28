@@ -19,6 +19,9 @@ if anthropic and ANTHROPIC_API_KEY:
         logger.info("Successfully initialized Claude client")
     except Exception as e:
         logger.error(f"Failed to initialize Claude client: {str(e)}")
+        # Try to provide more detailed error information
+        if hasattr(e, "__dict__"):
+            logger.error(f"Error details: {str(e.__dict__)}")
 
 def has_anthropic_key():
     """Check if Anthropic API key is available."""
@@ -72,7 +75,7 @@ def generate_brief_with_claude(document_text, title, focus_areas=None):
         
         # Generate the brief with Claude
         brief_response = claude_client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
             max_tokens=4000,
             temperature=0.2,
             system="You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document.",
@@ -87,7 +90,7 @@ def generate_brief_with_claude(document_text, title, focus_areas=None):
         summary_prompt = f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{brief_content[:2000]}"
         
         summary_response = claude_client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
             max_tokens=300,
             temperature=0.3,
             system="You are a legal brief summarizer. Create concise summaries of legal briefs.",
@@ -193,7 +196,7 @@ def enhance_document_parsing(document_text, document_type=None):
             # Call Claude for first chunk
             try:
                 first_response = claude_client.messages.create(
-                    model="claude-3-haiku-20240307",
+                    model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
                     max_tokens=4000,
                     temperature=0.2,
                     system=system_message,
@@ -236,7 +239,7 @@ def enhance_document_parsing(document_text, document_type=None):
                         """
                         
                         chunk_response = claude_client.messages.create(
-                            model="claude-3-haiku-20240307",
+                            model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
                             max_tokens=1000,
                             temperature=0.2,
                             system=system_message,
@@ -313,7 +316,7 @@ def enhance_document_parsing(document_text, document_type=None):
             
             try:
                 response = claude_client.messages.create(
-                    model="claude-3-haiku-20240307",
+                    model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
                     max_tokens=4000,
                     temperature=0.2,
                     system=system_message,
@@ -481,7 +484,7 @@ def extract_legal_entities(document_text):
             
             try:
                 response = claude_client.messages.create(
-                    model="claude-3-haiku-20240307",
+                    model="claude-3-5-sonnet-20241022",  # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
                     max_tokens=2000,
                     temperature=0.1,
                     system=system_message,
