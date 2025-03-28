@@ -68,6 +68,20 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     Returns:
         tuple: (title, content, summary)
     """
+    # Ensure document_text is a string
+    if isinstance(document_text, dict):
+        # Extract the text from the dictionary
+        if "full_text" in document_text:
+            document_text = document_text["full_text"]
+        else:
+            # If no "full_text" key, try to use the first text content found, or empty string
+            for key, value in document_text.items():
+                if isinstance(value, str) and len(value) > 100:
+                    document_text = value
+                    break
+            else:
+                document_text = str(document_text)  # Fallback to string representation
+    
     # Check if we can use OpenAI
     use_openai = os.environ.get("OPENAI_API_KEY") is not None
     
@@ -84,33 +98,21 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             
             from openai import OpenAI
             
-            # Import here to avoid circular imports
-            from services.document_parser import parse_document
-            
-            # Use enhanced document parsing to get structured content
-            enhanced_content = None
-            if isinstance(document_text, dict) and "full_text" in document_text:
-                # If document_text is already enhanced content
-                enhanced_content = document_text
-            else:
-                # Otherwise parse the document with OpenAI enhancement
-                enhanced_content = parse_document(document.file_path, use_openai=True)
-                
-            # If we still don't have enhanced content, fall back
-            if not isinstance(enhanced_content, dict) or "full_text" not in enhanced_content:
-                raise ValueError("Failed to get enhanced document content")
-            
-            # Prepare prompt for OpenAI with focus areas
-            focus_areas_text = ""
-            if focus_areas:
-                focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
-            
             # Get API client
             openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
             
+            # Prepare prompt for OpenAI with focus areas
+            focus_areas_text = ""
+            if focus_areas and isinstance(focus_areas, list):
+                focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
+            
+            # Prepare document text (truncate if too long)
+            doc_content = document_text[:8000] if len(document_text) > 8000 else document_text
+            
             # Generate a brief using OpenAI
+            logger.info("Calling OpenAI API to generate brief content")
             response = openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
                 messages=[
                     {"role": "system", "content": "You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document."},
                     {"role": "user", "content": f"""Create a detailed legal brief based on the following document content.
@@ -126,27 +128,29 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
                     4. Legal Analysis
                     5. Conclusion
                     
-                    Document content: {enhanced_content.get('full_text', document_text)[:8000]}... (text truncated for API limits)
+                    Document content: {doc_content}
                     
                     Please format the brief in Markdown with appropriate headings.
                     """}
                 ],
                 temperature=0.2,
-                max_tokens=4000
+                max_tokens=3000
             )
             
             # Get the brief content
             openai_brief = response.choices[0].message.content
             
+            logger.info("Brief content generated, now creating summary")
+            
             # Generate a summary using OpenAI
             summary_response = openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
                 messages=[
                     {"role": "system", "content": "You are a legal brief summarizer."},
-                    {"role": "user", "content": f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{openai_brief}"}
+                    {"role": "user", "content": f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{openai_brief[:2000]}"}
                 ],
                 temperature=0.3,
-                max_tokens=300
+                max_tokens=250
             )
             
             summary = summary_response.choices[0].message.content
