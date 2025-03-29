@@ -1,0 +1,127 @@
+/* Custom styles for the Microsoft Word add-in */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* Loading overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-message {
+    color: #fff;
+    font-size: 1.2em;
+}
+
+/* Statute validation results */
+.statute-item {
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    position: relative;
+}
+
+.statute-current {
+    background-color: rgba(25, 135, 84, 0.15);
+    border-left: 4px solid #198754;
+}
+
+.statute-outdated {
+    background-color: rgba(220, 53, 69, 0.15);
+    border-left: 4px solid #dc3545;
+}
+
+.statute-reference {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.statute-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.status-current {
+    background-color: rgba(25, 135, 84, 0.2);
+    color: #198754;
+}
+
+.status-outdated {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+/* Brief Generation Results */
+.brief-section {
+    margin-bottom: 1.5rem;
+}
+
+.brief-section-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 0.25rem;
+}
+
+/* Animations */
+.card {
+    transition: all 0.3s ease;
+}
+
+.btn {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1, 1) translate(-50%, -50%);
+    transform-origin: 50% 50%;
+}
+
+.btn:focus:not(:active)::after {
+    animation: ripple 1s ease-out;
+}
+
+@keyframes ripple {
+    0% {
+        transform: scale(0, 0);
+        opacity: 1;
+    }
+    20% {
+        transform: scale(25, 25);
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: scale(40, 40);
+    }
+}

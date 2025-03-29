@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+
+{% block title %}Plugins | Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Plugins</h1>
+            <p class="lead">Extend the functionality of Legal Document Analyzer with these plugins</p>
+        </div>
+    </div>
+    
+    {% if plugins %}
+        <div class="row">
+            {% for plugin in plugins %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">{{ plugin.display_name }}</h5>
+                            <span class="badge bg-primary">v{{ plugin.version }}</span>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ plugin.description }}</p>
+                            
+                            {% if plugin.integration_points is defined and plugin.integration_points %}
+                                <h6>Integration Points</h6>
+                                <ul class="list-unstyled">
+                                    {% for integration in plugin.integration_points %}
+                                        <li>
+                                            <i class="fas fa-plug me-2"></i>
+                                            {{ integration.display_name }} - {{ integration.description }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            
+                            {% if plugin.platform is defined %}
+                                <p class="mb-0 mt-3">
+                                    <strong>Platform:</strong> {{ plugin.platform }}
+                                    {% if plugin.application is defined %}
+                                        ({{ plugin.application }})
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer d-flex justify-content-end">
+                            {% if plugin.download_url is defined and plugin.download_url %}
+                                <a href="{{ plugin.download_url }}" class="btn btn-primary" target="_blank">
+                                    <i class="fas fa-download me-2"></i> Download
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            No plugins are currently available.
+        </div>
+    {% endif %}
+    
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">How to Use Plugins</h5>
+        </div>
+        <div class="card-body">
+            <ol>
+                <li>Download and install the plugin for your preferred application.</li>
+                <li>Configure the plugin with your API URL and API key.</li>
+                <li>Use the plugin's features to analyze documents, generate briefs, and validate statutes directly from your preferred application.</li>
+            </ol>
+            <p>For more information, please refer to the documentation included with each plugin.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

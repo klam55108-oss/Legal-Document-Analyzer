@@ -318,3 +318,12 @@ def setup_web_routes(app):
     @app.errorhandler(500)
     def server_error(e):
         return render_template('500.html'), 500
+        
+    @app.route('/plugins')
+    @login_required
+    def plugins_list():
+        """List all available plugins."""
+        from plugins import get_plugin_info
+        
+        plugins = get_plugin_info()
+        return render_template('plugins.html', plugins=plugins)
