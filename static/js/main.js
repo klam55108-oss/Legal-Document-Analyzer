@@ -76,68 +76,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Initialize modals properly when the page loads
-    const generateBriefModalEl = document.getElementById('generateBriefModal');
-    let generateBriefModal = null;
-    if (generateBriefModalEl) {
-        generateBriefModal = new bootstrap.Modal(generateBriefModalEl);
-    }
-    
-    // Generate brief form handling
+    // Generate brief form validation
     const generateBriefForm = document.getElementById('generateBriefForm');
     if (generateBriefForm) {
-        // Handle the submission properly
         generateBriefForm.addEventListener('submit', function(event) {
-            // Log focus areas (optional field)
             const focusAreas = document.getElementById('focusAreas').value;
             if (!focusAreas.trim()) {
+                // It's optional, so we don't prevent submission
                 console.log('No focus areas specified');
-            }
-            
-            // Find and disable the submit button to prevent multiple submissions
-            const submitButton = this.querySelector('button[type="submit"]');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generating...';
-            }
-            
-            // Close the modal after submission
-            if (generateBriefModal) {
-                generateBriefModal.hide();
-            } else {
-                // Fallback method if the modal instance isn't available
-                const modalEl = document.getElementById('generateBriefModal');
-                if (modalEl) {
-                    const bsModal = bootstrap.Modal.getInstance(modalEl);
-                    if (bsModal) {
-                        bsModal.hide();
-                    } else {
-                        // Last resort - use jQuery if available
-                        if (typeof $ !== 'undefined') {
-                            $('#generateBriefModal').modal('hide');
-                        }
-                    }
-                }
-            }
-            
-            // Show a processing message
-            const alertDiv = document.createElement('div');
-            alertDiv.classList.add('alert', 'alert-info', 'alert-dismissible', 'fade', 'show', 'mt-3');
-            alertDiv.innerHTML = `
-                <strong>Generating brief...</strong> This may take a few moments.
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            
-            // Find a good place to add the alert
-            const tabContent = document.querySelector('.tab-content');
-            if (tabContent) {
-                tabContent.prepend(alertDiv);
-            } else {
-                // Fallback to adding it at the beginning of the main container
-                const container = document.querySelector('.container');
-                if (container) {
-                    container.prepend(alertDiv);
-                }
             }
         });
     }

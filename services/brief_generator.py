@@ -3,7 +3,7 @@ import os
 from models import Brief, Document
 from datetime import datetime
 import re
-from services.openai_service import extract_legal_entities, generate_document_summary, has_anthropic_key, generate_brief_with_claude
+from services.openai_service import extract_legal_entities, generate_document_summary
 
 logger = logging.getLogger(__name__)
 
@@ -31,35 +31,8 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             # Extract the full text from the enhanced document
             document_text = document_text.get("full_text", "")
         
-        try:
-            # First attempt to use the preferred method (OpenAI if available)
-            logger.info("Attempting to generate brief with primary method")
-            title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
-        except Exception as content_error:
-            # If the primary method fails, use a guaranteed fallback method
-            logger.warning(f"Primary brief generation failed: {str(content_error)}")
-            logger.info("Using guaranteed fallback method for brief generation")
-            title = custom_title or f"Brief: {document.original_filename}"
-            
-            # Create basic content with rule-based extraction
-            sections = {
-                'introduction': generate_introduction(document_text),
-                'facts': extract_facts(document_text),
-                'legal_issues': identify_legal_issues(document_text, focus_areas),
-                'analysis': generate_legal_analysis(document_text, focus_areas),
-                'conclusion': generate_conclusion(document_text)
-            }
-            
-            # Add statute references
-            statutes_section = generate_statutes_section(document)
-            if statutes_section:
-                sections['statutes'] = statutes_section
-            
-            # Format the full content
-            content = format_brief_content(title, sections)
-            
-            # Generate a summary
-            summary = generate_summary(sections)
+        # Generate the brief content
+        title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
         
         # Create the brief in the database
         from app import db
@@ -109,8 +82,8 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             else:
                 document_text = str(document_text)  # Fallback to string representation
     
-    # Check if we can use Claude
-    use_claude = has_anthropic_key()
+    # Check if we can use OpenAI
+    use_openai = os.environ.get("OPENAI_API_KEY") is not None
     
     # Generate a title if not provided
     if custom_title:
@@ -118,39 +91,88 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     else:
         title = generate_title(document_text, document.original_filename)
     
-    # Try to use Claude for enhanced brief generation
-    if use_claude:
+    # Try to use OpenAI for enhanced brief generation
+    if use_openai:
         try:
-            logger.info(f"Using Claude to generate brief for document {document.id}")
+            logger.info(f"Using OpenAI to generate brief for document {document.id}")
             
-            # Implement chunking for long documents
-            MAX_CHUNK_SIZE = 10000  # Characters per chunk
-            if len(document_text) > MAX_CHUNK_SIZE:
-                logger.info(f"Document is long ({len(document_text)} chars), truncating to {MAX_CHUNK_SIZE} chars for brief generation")
-                document_text = document_text[:MAX_CHUNK_SIZE]
-                logger.info("Note: Document was truncated due to length. Consider splitting into multiple briefs for complete analysis.")
+            from openai import OpenAI
             
-            # Generate brief with Claude
-            brief_content, summary = generate_brief_with_claude(document_text, title, focus_areas)
+            # Get API client
+            openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            
+            # Prepare prompt for OpenAI with focus areas
+            focus_areas_text = ""
+            if focus_areas and isinstance(focus_areas, list):
+                focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
+            
+            # Prepare document text (truncate if too long)
+            doc_content = document_text[:8000] if len(document_text) > 8000 else document_text
+            
+            # Generate a brief using OpenAI
+            logger.info("Calling OpenAI API to generate brief content")
+            response = openai_client.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=[
+                    {"role": "system", "content": "You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document."},
+                    {"role": "user", "content": f"""Create a detailed legal brief based on the following document content.
+                    
+                    Document title: {title.replace('Brief: ', '')}
+                    
+                    {focus_areas_text}
+                    
+                    Structure the brief with these sections:
+                    1. Introduction
+                    2. Factual Background
+                    3. Legal Issues
+                    4. Legal Analysis
+                    5. Conclusion
+                    
+                    Document content: {doc_content}
+                    
+                    Please format the brief in Markdown with appropriate headings.
+                    """}
+                ],
+                temperature=0.2,
+                max_tokens=3000
+            )
+            
+            # Get the brief content
+            openai_brief = response.choices[0].message.content
+            
+            logger.info("Brief content generated, now creating summary")
+            
+            # Generate a summary using OpenAI
+            summary_response = openai_client.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=[
+                    {"role": "system", "content": "You are a legal brief summarizer."},
+                    {"role": "user", "content": f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{openai_brief[:2000]}"}
+                ],
+                temperature=0.3,
+                max_tokens=250
+            )
+            
+            summary = summary_response.choices[0].message.content
             
             # Add statute references to the content
             statutes_section = generate_statutes_section(document)
             if statutes_section:
-                if "## Statutory References" not in brief_content:
-                    brief_content += f"\n\n## Statutory References\n\n{statutes_section}\n\n"
+                if "## Statutory References" not in openai_brief:
+                    openai_brief += f"\n\n## Statutory References\n\n{statutes_section}\n\n"
             
             # Add generation note
-            brief_content += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance (Claude). " \
+            openai_brief += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance. " \
                           f"It should be reviewed for accuracy and completeness.*"
             
-            logger.info(f"Claude brief generation successful for document {document.id}")
-            return title, brief_content, summary
+            logger.info(f"OpenAI brief generation successful for document {document.id}")
+            return title, openai_brief, summary
             
-        except Exception as claude_error:
-            logger.error(f"Claude API error: {str(claude_error)}")
-            logger.info("Falling back to traditional brief generation as requested by user")
+        except Exception as e:
+            logger.error(f"Error generating brief with OpenAI: {str(e)}")
+            logger.info("Falling back to traditional brief generation")
     
-    # Traditional brief generation (fallback if Claude is not available)
+    # Traditional brief generation (fallback or if OpenAI is not available)
     # Initialize the brief sections
     sections = {
         'introduction': generate_introduction(document_text),
@@ -397,58 +419,12 @@ def generate_statutes_section(document):
     """Generate a section with statute references."""
     from app import db
     from models import Statute
-    from services.statute_validator import validate_statutes, revalidate_statute
-    import logging
     
-    logger = logging.getLogger(__name__)
-    
-    # Get all statutes for this document
     statutes = Statute.query.filter_by(document_id=document.id).all()
     
-    # If we have no statutes, run validation to make sure we didn't miss any
-    if not statutes:
-        logger.info(f"No statutes found for document ID {document.id}, checking if we missed any")
-        # Get the document text to analyze for statutes
-        from services.document_parser import parse_document
-        from services.text_analysis import analyze_document
-        
-        try:
-            # Parse the document to get its text
-            document_text = parse_document(document.file_path)
-            
-            # Make sure we have a string
-            if isinstance(document_text, dict):
-                document_text = document_text.get("full_text", "")
-                
-            # Analyze the document to extract statutes
-            analyze_document(document_text, document.id)
-            
-            # Get the statutes again after analysis
-            statutes = Statute.query.filter_by(document_id=document.id).all()
-            logger.info(f"Found {len(statutes)} statutes after analysis for document ID {document.id}")
-        except Exception as e:
-            logger.error(f"Error analyzing document for statutes: {str(e)}")
-    
-    # If we still have no statutes, return None
     if not statutes:
         return None
     
-    # Validate all statutes to ensure they're current
-    for statute in statutes:
-        try:
-            logger.info(f"Revalidating statute {statute.reference} for document ID {document.id}")
-            revalidate_statute(statute)
-        except Exception as e:
-            logger.error(f"Error validating statute {statute.reference}: {str(e)}")
-    
-    # Commit any validation changes
-    try:
-        db.session.commit()
-    except Exception as e:
-        logger.error(f"Error committing statute validation changes: {str(e)}")
-        db.session.rollback()
-    
-    # Now generate the statute section
     statute_section = "Referenced Statutes and Regulations:\n\n"
     
     for statute in statutes:
