@@ -2,8 +2,10 @@ import requests
 import logging
 import re
 import os
+import json
 from datetime import datetime
 from models import Statute
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,78 @@ def revalidate_statute(statute):
         logger.error(f"Error revalidating statute {statute.reference}: {str(e)}")
         raise ValueError(f"Failed to revalidate statute: {str(e)}")
 
+def validate_with_openai(reference):
+    """
+    Use OpenAI to validate a statute reference when no legal API is available.
+    
+    Args:
+        reference (str): The statute reference to check
+        
+    Returns:
+        tuple: (is_current, source_database)
+    """
+    # Get OpenAI API key from environment
+    openai_api_key = os.environ.get('OPENAI_API_KEY')
+    
+    if not openai_api_key:
+        logger.warning("No OpenAI API key available for statute validation")
+        return mock_validate_statute(reference)
+    
+    try:
+        client = OpenAI(api_key=openai_api_key)
+        
+        prompt = f"""
+As a legal expert, verify if this legal citation is current or outdated: "{reference}"
+
+Analyze the citation format and respond with:
+1. Is this statute/regulation still in effect? (true/false)
+2. What legal database would typically be used to verify this?
+3. Your confidence level (0.0-1.0) in this assessment
+
+IMPORTANT: Return ONLY a JSON object with these three fields:
+- is_current: boolean
+- source_database: string
+- confidence: float
+"""
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model="gpt-4o",  # Use the latest model for best legal knowledge
+            messages=[
+                {"role": "system", "content": "You are a legal research expert who verifies statute and regulation citations."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.2  # Lower temperature for more factual responses
+        )
+        
+        # Parse the response
+        try:
+            result = json.loads(response.choices[0].message.content)
+            is_current = result.get('is_current', True)
+            source_database = result.get('source_database', 'OpenAI Legal Validation')
+            confidence = result.get('confidence', 0.0)
+            
+            logger.info(f"OpenAI validation for '{reference}': is_current={is_current}, confidence={confidence}")
+            
+            # If confidence is too low, default to "current" for safety
+            if confidence < 0.6:
+                logger.warning(f"Low confidence ({confidence}) in validation of '{reference}', defaulting to current")
+                is_current = True
+                source_database = f"OpenAI (Low Confidence: {confidence})"
+            else:
+                source_database = f"OpenAI Legal Validation"
+                
+            return is_current, source_database
+            
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Error parsing OpenAI validation response: {str(e)}")
+            return True, "OpenAI Parsing Error"
+            
+    except Exception as e:
+        logger.error(f"Error using OpenAI for statute validation: {str(e)}")
+        return True, "OpenAI Error"
+
 def check_statute_currency(reference):
     """
     Check if a statute reference is current by querying legal databases.
@@ -117,8 +191,13 @@ def check_statute_currency(reference):
     """
     # Get API key from environment
     api_key = os.environ.get('LEGAL_API_KEY')
-    if not api_key:
-        logger.warning("No LEGAL_API_KEY found in environment, using mock validation")
+    
+    # Try OpenAI validation if legal API key is not available
+    if not api_key and os.environ.get('OPENAI_API_KEY'):
+        logger.info(f"No LEGAL_API_KEY found, using OpenAI to validate statute: {reference}")
+        return validate_with_openai(reference)
+    elif not api_key:
+        logger.warning("No LEGAL_API_KEY or OPENAI_API_KEY found, using mock validation")
         return mock_validate_statute(reference)
     
     # Determine which API to use based on the reference format

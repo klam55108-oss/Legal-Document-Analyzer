@@ -6,6 +6,7 @@ from collections import defaultdict
 from models import Statute
 from datetime import datetime
 from services.openai_service import extract_legal_entities, generate_document_summary
+from services.openai_document import analyze_document_for_statutes
 
 logger = logging.getLogger(__name__)
 
@@ -66,23 +67,47 @@ def analyze_document(text, document_id, use_openai=True):
         try:
             logger.info(f"Using OpenAI to analyze document {document_id}")
             
-            # Extract legal entities using OpenAI
-            legal_entities = extract_legal_entities(text)
-            
-            # Process results from OpenAI
-            if 'statutes' in legal_entities:
-                for statute in legal_entities['statutes']:
-                    if 'citation' in statute and 'context' in statute:
-                        results['statutes'].append({
-                            'reference': statute['citation'],
-                            'context': statute['context']
-                        })
-            
-            if 'cases' in legal_entities:
-                results['citations']['cases'] = [case.get('citation', '') for case in legal_entities['cases']]
-            
-            if 'legal_concepts' in legal_entities:
-                results['key_phrases'] = [concept.get('name', '') for concept in legal_entities['legal_concepts']]
+            # Try to use our new enhanced statute extraction
+            try:
+                logger.info("Using enhanced OpenAI statute extraction")
+                statutes = analyze_document_for_statutes(text)
+                
+                if statutes:
+                    for statute in statutes:
+                        # Handle different API response structures
+                        if isinstance(statute, dict):
+                            citation = statute.get('citation') or statute.get('reference')
+                            context = statute.get('context') or statute.get('text', '')
+                            jurisdiction = statute.get('jurisdiction', 'unknown')
+                            
+                            if citation:
+                                results['statutes'].append({
+                                    'reference': citation,
+                                    'context': context,
+                                    'jurisdiction': jurisdiction
+                                })
+                
+                logger.info(f"Enhanced statute extraction found {len(statutes)} statutes")
+            except Exception as e_statute:
+                logger.warning(f"Enhanced statute extraction failed: {str(e_statute)}, falling back to entity extraction")
+                
+                # Fall back to general entity extraction
+                legal_entities = extract_legal_entities(text)
+                
+                # Process results from OpenAI
+                if 'statutes' in legal_entities:
+                    for statute in legal_entities['statutes']:
+                        if 'citation' in statute and 'context' in statute:
+                            results['statutes'].append({
+                                'reference': statute['citation'],
+                                'context': statute['context']
+                            })
+                
+                if 'cases' in legal_entities:
+                    results['citations']['cases'] = [case.get('citation', '') for case in legal_entities['cases']]
+                
+                if 'legal_concepts' in legal_entities:
+                    results['key_phrases'] = [concept.get('name', '') for concept in legal_entities['legal_concepts']]
             
             # Generate a summary
             results['summary'] = generate_document_summary(text)

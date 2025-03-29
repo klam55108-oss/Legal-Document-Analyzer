@@ -4,6 +4,7 @@ import docx
 import logging
 from werkzeug.utils import secure_filename
 from services.openai_service import enhance_document_parsing, extract_legal_entities, generate_document_summary
+from services.openai_document import parse_document_with_openai
 
 logger = logging.getLogger(__name__)
 
@@ -60,21 +61,31 @@ def parse_document(file_path, use_openai=True, document_type=None):
         if use_openai and raw_text:
             logger.info(f"Enhancing document parsing for {file_path} with OpenAI")
             try:
-                enhanced_content = enhance_document_parsing(raw_text, document_type)
-                
-                # Extract legal entities if not already included
-                if "legal_citations" not in enhanced_content or not enhanced_content["legal_citations"]:
-                    legal_entities = extract_legal_entities(raw_text)
-                    enhanced_content["legal_entities"] = legal_entities
-                
-                # Generate summary if not already included
-                if "summary" not in enhanced_content or not enhanced_content["summary"]:
-                    summary = generate_document_summary(raw_text)
-                    enhanced_content["summary"] = summary
-                
-                return enhanced_content
+                # Try our new dedicated OpenAI document parser first
+                try:
+                    logger.info("Using enhanced OpenAI document parser")
+                    enhanced_content = parse_document_with_openai(raw_text, document_type)
+                    logger.info(f"Enhanced document parsing successful with new parser")
+                    return enhanced_content
+                except Exception as e1:
+                    logger.warning(f"Enhanced OpenAI document parser failed: {str(e1)}, falling back to standard parser")
+                    
+                    # Fall back to original parser
+                    enhanced_content = enhance_document_parsing(raw_text, document_type)
+                    
+                    # Extract legal entities if not already included
+                    if "legal_citations" not in enhanced_content or not enhanced_content["legal_citations"]:
+                        legal_entities = extract_legal_entities(raw_text)
+                        enhanced_content["legal_entities"] = legal_entities
+                    
+                    # Generate summary if not already included
+                    if "summary" not in enhanced_content or not enhanced_content["summary"]:
+                        summary = generate_document_summary(raw_text)
+                        enhanced_content["summary"] = summary
+                    
+                    return enhanced_content
             except Exception as e:
-                logger.error(f"OpenAI enhancement failed for {file_path}: {str(e)}")
+                logger.error(f"All OpenAI enhancement methods failed for {file_path}: {str(e)}")
                 # Return raw text if OpenAI enhancement fails
                 return {"full_text": raw_text, "error": str(e)}
         
