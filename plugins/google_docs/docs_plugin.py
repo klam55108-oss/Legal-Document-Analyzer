@@ -280,7 +280,7 @@ class GoogleDocsPlugin(BasePlugin):
                 "common": {
                     "name": "Legal Document Analyzer",
                     "logoUrl": "https://example.com/logo.png",
-                    "useLocaleFromApp": true,
+                    "useLocaleFromApp": True,
                     "homepageTrigger": {
                         "runFunction": "onHomepage"
                     },

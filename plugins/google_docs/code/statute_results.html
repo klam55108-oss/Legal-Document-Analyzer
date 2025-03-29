@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 10px;
+      }
+      h2 {
+        color: #4285f4;
+        margin-top: 0;
+      }
+      .summary {
+        margin-bottom: 20px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+      .summary-warning {
+        background-color: #fce8e6;
+      }
+      .statutes {
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+      }
+      .statute {
+        margin-bottom: 10px;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+      }
+      .statute-outdated {
+        background-color: #fce8e6;
+      }
+      .statute-reference {
+        font-weight: bold;
+      }
+      .btn {
+        padding: 8px 12px;
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 10px;
+      }
+      .btn:hover {
+        background-color: #357ae8;
+      }
+      .footer {
+        text-align: right;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Statute Validation Results</h2>
+    
+    <div class="summary <?= data.outdatedCount > 0 ? 'summary-warning' : '' ?>">
+      <h3>Summary</h3>
+      <p>
+        Found <?= data.totalCount ?> statute references in this document.
+        <?= data.outdatedCount ?> statutes may be outdated or have amendments.
+      </p>
+      <? if (data.outdatedCount > 0) { ?>
+        <p><strong>Warning:</strong> Some statutes in this document may be outdated or have amendments. Review the highlighted statutes below.</p>
+      <? } else { ?>
+        <p><strong>Good news!</strong> All identified statutes appear to be current.</p>
+      <? } ?>
+    </div>
+    
+    <? if (data.statutes && data.statutes.length > 0) { ?>
+      <h3>Statutes</h3>
+      <div class="statutes">
+        <? for (var i = 0; i < data.statutes.length; i++) { ?>
+          <div class="statute <?= data.statutes[i].is_current ? '' : 'statute-outdated' ?>">
+            <div class="statute-reference"><?= data.statutes[i].reference ?></div>
+            <div>
+              <strong>Status:</strong> <?= data.statutes[i].is_current ? 'Current' : 'Outdated or Amendment Exists' ?>
+            </div>
+            <? if (data.statutes[i].content) { ?>
+              <div><strong>Content:</strong> <?= data.statutes[i].content.substring(0, 150) ?>...</div>
+            <? } ?>
+            <div><strong>Last Verified:</strong> <?= new Date(data.statutes[i].verified_at).toLocaleString() ?></div>
+          </div>
+        <? } ?>
+      </div>
+    <? } else { ?>
+      <p>No statute references found in this document.</p>
+    <? } ?>
+    
+    <div class="footer">
+      <button class="btn" onclick="generateBrief()">Generate Brief</button>
+      <button class="btn" onclick="google.script.host.close()">Close</button>
+    </div>
+    
+    <script>
+      function generateBrief() {
+        google.script.host.close();
+        google.script.run.showGenerateBriefDialog();
+      }
+    </script>
+  </body>
+</html>

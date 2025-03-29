@@ -1,645 +1,565 @@
-/**
- * Legal Document Analyzer for Microsoft Word
- * JavaScript client for the Word plugin
- */
+// Legal Document Analyzer - Word Add-in JavaScript
 
-// Global state
-let appState = {
-    apiUrl: null,
-    apiKey: null,
-    documentId: null,
-    documentContent: null,
-    statutes: []
-};
+// Global variables
+let apiUrl = '';
+let apiKey = '';
+let documentId = null;
+let currentBrief = null;
 
-// Initialize the application when the Office host is ready
+// Initialize Office.js
 Office.onReady(function(info) {
-    // Only run if in Word context
-    if (info.host === Office.HostType.Word) {
-        // Initialize UI event handlers
-        initializeUI();
-        
-        // Load saved settings
-        loadSettings();
-        
-        console.log("Legal Document Analyzer add-in initialized in Word");
-    }
+    // Initialize Fabric UI components
+    initFabricUI();
+    
+    // Initialize event handlers
+    initEventHandlers();
+    
+    // Load settings
+    loadSettings();
+    
+    // Show appropriate status message
+    updateStatusMessage('Ready to analyze your document.', 'info');
 });
 
-/**
- * Initialize UI event handlers
- */
-function initializeUI() {
-    // Settings management
-    $('#saveSettings').on('click', saveSettingsToLocalStorage);
+// Initialize Fabric UI components
+function initFabricUI() {
+    // Initialize Pivot (Tabs)
+    var pivotElements = document.querySelectorAll(".ms-Pivot");
+    for (var i = 0; i < pivotElements.length; i++) {
+        new fabric['Pivot'](pivotElements[i]);
+    }
     
-    // Document analysis
-    $('#analyzeDocument').on('click', handleAnalyzeDocument);
-    $('#generateBrief').on('click', showBriefOptions);
-    $('#validateStatutes').on('click', handleValidateStatutes);
+    // Initialize Spinner
+    var spinnerElements = document.querySelectorAll(".ms-Spinner");
+    for (var i = 0; i < spinnerElements.length; i++) {
+        new fabric['Spinner'](spinnerElements[i]);
+    }
     
-    // Brief generation
-    $('#generateBriefSubmit').on('click', handleGenerateBrief);
-    $('#cancelBriefGeneration').on('click', hideBriefOptions);
+    // Initialize TextField
+    var textFieldElements = document.querySelectorAll(".ms-TextField");
+    for (var i = 0; i < textFieldElements.length; i++) {
+        new fabric['TextField'](textFieldElements[i]);
+    }
     
-    // Statute validation
-    $('#insertStatuteResults').on('click', handleInsertStatuteResults);
-}
-
-/**
- * Load settings from localStorage
- */
-function loadSettings() {
-    try {
-        const settings = JSON.parse(localStorage.getItem('legalAnalyzerSettings') || '{}');
-        
-        if (settings.apiUrl) {
-            $('#apiUrl').val(settings.apiUrl);
-            appState.apiUrl = settings.apiUrl;
-        }
-        
-        if (settings.apiKey) {
-            $('#apiKey').val(settings.apiKey);
-            appState.apiKey = settings.apiKey;
-        }
-        
-        updateStatusMessage("Settings loaded successfully.");
-    } catch (error) {
-        console.error("Error loading settings:", error);
-        updateStatusMessage("Failed to load settings.", "error");
+    // Initialize MessageBar
+    var messageBarElements = document.querySelectorAll(".ms-MessageBar");
+    for (var i = 0; i < messageBarElements.length; i++) {
+        new fabric['MessageBar'](messageBarElements[i]);
     }
 }
 
-/**
- * Save settings to localStorage
- */
-function saveSettingsToLocalStorage() {
-    try {
-        const apiUrl = $('#apiUrl').val().trim();
-        const apiKey = $('#apiKey').val().trim();
-        
-        if (!apiUrl) {
-            updateStatusMessage("API URL is required.", "error");
-            return;
+// Initialize event handlers
+function initEventHandlers() {
+    // Tab switching
+    document.getElementById('appTabs').addEventListener('click', function(event) {
+        if (event.target.classList.contains('ms-Pivot-link')) {
+            showTabContent(event.target.getAttribute('data-content'));
         }
-        
-        if (!apiKey) {
-            updateStatusMessage("API Key is required.", "error");
-            return;
-        }
-        
-        // Save to state and localStorage
-        appState.apiUrl = apiUrl;
-        appState.apiKey = apiKey;
-        
-        localStorage.setItem('legalAnalyzerSettings', JSON.stringify({
-            apiUrl,
-            apiKey
-        }));
-        
-        updateStatusMessage("Settings saved successfully.");
-    } catch (error) {
-        console.error("Error saving settings:", error);
-        updateStatusMessage("Failed to save settings.", "error");
+    });
+    
+    // Analyze button
+    document.getElementById('analyzeButton').addEventListener('click', analyzeDocument);
+    
+    // Generate brief button
+    document.getElementById('generateBriefButton').addEventListener('click', generateBrief);
+    
+    // Insert brief button
+    document.getElementById('insertBriefButton').addEventListener('click', insertBrief);
+    
+    // Validate statutes button
+    document.getElementById('validateStatutesButton').addEventListener('click', validateStatutes);
+    
+    // Save settings button
+    document.getElementById('saveSettingsButton').addEventListener('click', saveSettings);
+}
+
+// Show tab content
+function showTabContent(tabName) {
+    // Hide all tab content
+    var tabContents = document.querySelectorAll('.ms-Pivot-content');
+    for (var i = 0; i < tabContents.length; i++) {
+        tabContents[i].style.display = 'none';
+    }
+    
+    // Show selected tab content
+    var selectedContent = document.querySelector('.ms-Pivot-content[data-content="' + tabName + '"]');
+    if (selectedContent) {
+        selectedContent.style.display = 'block';
     }
 }
 
-/**
- * Handle Analyze Document button click
- */
-function handleAnalyzeDocument() {
-    // Check if settings are configured
-    if (!isConfigured()) {
-        return;
-    }
-    
-    showLoading("Retrieving document content...");
-    
-    // Get the document content
-    Office.context.document.getFileAsync(Office.FileType.Text, { sliceSize: 65536 }, function(result) {
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-            // Get the file handle
-            const fileHandle = result.value;
-            
-            // Read the file content
-            fileHandle.getSliceAsync(0, function(sliceResult) {
-                if (sliceResult.status === Office.AsyncResultStatus.Succeeded) {
-                    // Store the document content
-                    appState.documentContent = sliceResult.value.data;
-                    
-                    // Close the file handle
-                    fileHandle.closeAsync(function() {
-                        // Upload the document for analysis
-                        uploadDocument(appState.documentContent);
-                    });
-                } else {
-                    hideLoading();
-                    console.error("Error getting slice:", sliceResult.error);
-                    updateStatusMessage("Error retrieving document content.", "error");
-                }
-            });
-        } else {
-            hideLoading();
-            console.error("Error getting file:", result.error);
-            updateStatusMessage("Error retrieving document file.", "error");
-        }
-    });
-}
-
-/**
- * Upload document to the Legal Document Analyzer API
- */
-function uploadDocument(content) {
-    updateLoadingMessage("Uploading document for analysis...");
-    
-    // Create a FormData object with the document content
-    const formData = new FormData();
-    const blob = new Blob([content], { type: 'text/plain' });
-    formData.append('file', blob, 'document.txt');
-    
-    // Make API request
-    $.ajax({
-        url: `${appState.apiUrl}/api/documents`,
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-API-Key': appState.apiKey
-        },
-        success: function(response) {
-            hideLoading();
-            
-            if (response && response.id) {
-                // Store the document ID
-                appState.documentId = response.id;
-                
-                // Enable additional actions
-                $('#generateBrief').prop('disabled', false);
-                $('#validateStatutes').prop('disabled', false);
-                
-                // Show analysis results
-                showAnalysisResults(response);
-                
-                updateStatusMessage("Document uploaded and analyzed successfully.");
-            } else {
-                updateStatusMessage("Invalid response from server.", "error");
-            }
-        },
-        error: function(xhr, status, error) {
-            hideLoading();
-            console.error("Error uploading document:", error);
-            updateStatusMessage(`Error uploading document: ${getErrorMessage(xhr)}`, "error");
-        }
-    });
-}
-
-/**
- * Display analysis results
- */
-function showAnalysisResults(response) {
-    const resultsHtml = `
-        <div class="alert alert-success mb-3">
-            <i class="fas fa-check-circle me-2"></i>
-            Document analyzed successfully!
-        </div>
-        <div class="mb-3">
-            <strong>Document ID:</strong> ${response.id}<br>
-            <strong>Statutes Found:</strong> ${response.statutes_found || 0}
-        </div>
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            Use the buttons above to generate a legal brief or validate statute references.
-        </div>
-    `;
-    
-    $('#resultsContent').html(resultsHtml);
-    $('#analysisResults').removeClass('d-none');
-}
-
-/**
- * Show brief generation options
- */
-function showBriefOptions() {
-    // Hide analysis results
-    $('#analysisResults').addClass('d-none');
-    
-    // Show brief options
-    $('#briefOptions').removeClass('d-none');
-    
-    // Clear form
-    $('#briefTitle').val('');
-    $('#focusAreas').val('');
-}
-
-/**
- * Hide brief generation options
- */
-function hideBriefOptions() {
-    // Show analysis results
-    $('#analysisResults').removeClass('d-none');
-    
-    // Hide brief options
-    $('#briefOptions').addClass('d-none');
-}
-
-/**
- * Handle Generate Brief button click
- */
-function handleGenerateBrief() {
-    // Check if document ID is available
-    if (!appState.documentId) {
-        updateStatusMessage("Please analyze a document first.", "error");
-        return;
-    }
-    
-    // Get form values
-    const title = $('#briefTitle').val().trim();
-    const focusAreasText = $('#focusAreas').val().trim();
-    const focusAreas = focusAreasText ? focusAreasText.split('\n').filter(Boolean) : [];
-    
-    showLoading("Generating legal brief...");
-    
-    // Make API request
-    $.ajax({
-        url: `${appState.apiUrl}/api/briefs`,
-        type: 'POST',
-        data: JSON.stringify({
-            document_id: appState.documentId,
-            title: title || undefined,
-            focus_areas: focusAreas.length > 0 ? focusAreas : undefined
-        }),
-        contentType: 'application/json',
-        headers: {
-            'X-API-Key': appState.apiKey
-        },
-        success: function(response) {
-            hideLoading();
-            
-            if (response && response.id) {
-                // Hide brief options
-                hideBriefOptions();
-                
-                // Fetch brief details
-                fetchBrief(response.id);
-                
-                updateStatusMessage("Brief generated successfully.");
-            } else {
-                updateStatusMessage("Invalid response from server.", "error");
-            }
-        },
-        error: function(xhr, status, error) {
-            hideLoading();
-            console.error("Error generating brief:", error);
-            updateStatusMessage(`Error generating brief: ${getErrorMessage(xhr)}`, "error");
-        }
-    });
-}
-
-/**
- * Fetch brief details
- */
-function fetchBrief(briefId) {
-    showLoading("Fetching brief details...");
-    
-    // Make API request
-    $.ajax({
-        url: `${appState.apiUrl}/api/briefs/${briefId}`,
-        type: 'GET',
-        headers: {
-            'X-API-Key': appState.apiKey
-        },
-        success: function(response) {
-            hideLoading();
-            
-            if (response && response.content) {
-                // Insert brief into document
-                insertBriefIntoDocument(response);
-            } else {
-                updateStatusMessage("Invalid response from server.", "error");
-            }
-        },
-        error: function(xhr, status, error) {
-            hideLoading();
-            console.error("Error fetching brief:", error);
-            updateStatusMessage(`Error fetching brief: ${getErrorMessage(xhr)}`, "error");
-        }
-    });
-}
-
-/**
- * Insert brief content into Word document
- */
-function insertBriefIntoDocument(brief) {
-    showLoading("Inserting brief into document...");
-    
-    // Format brief content for Word
-    const content = formatBriefContent(brief);
-    
-    // Insert into document
-    Office.context.document.setSelectedDataAsync(content, { coercionType: Office.CoercionType.Html }, function(result) {
-        hideLoading();
-        
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-            updateStatusMessage("Brief inserted into document successfully.");
-        } else {
-            console.error("Error inserting brief:", result.error);
-            updateStatusMessage("Error inserting brief into document.", "error");
-        }
-    });
-}
-
-/**
- * Format brief content as HTML for Word
- */
-function formatBriefContent(brief) {
-    // Convert Markdown-ish content to HTML
-    let content = brief.content;
-    
-    // Replace headings
-    content = content.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    content = content.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    content = content.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    
-    // Replace lists
-    content = content.replace(/^- (.+)$/gm, '<li>$1</li>');
-    
-    // Replace paragraphs
-    content = content.replace(/^([^<\s].+)$/gm, '<p>$1</p>');
-    
-    // Wrap the whole thing in a div
-    return `
-        <div style="font-family: 'Calibri', sans-serif;">
-            <h1>${brief.title}</h1>
-            ${content}
-        </div>
-    `;
-}
-
-/**
- * Handle Validate Statutes button click
- */
-function handleValidateStatutes() {
-    // Check if document ID is available
-    if (!appState.documentId) {
-        updateStatusMessage("Please analyze a document first.", "error");
-        return;
-    }
-    
-    showLoading("Validating statute references...");
-    
-    // Make API request
-    $.ajax({
-        url: `${appState.apiUrl}/api/statutes`,
-        type: 'GET',
-        data: {
-            document_id: appState.documentId
-        },
-        headers: {
-            'X-API-Key': appState.apiKey
-        },
-        success: function(response) {
-            hideLoading();
-            
-            if (response && response.items) {
-                // Store statutes
-                appState.statutes = response.items;
-                
-                // Display statute validation results
-                showStatuteValidationResults(response.items);
-                
-                updateStatusMessage("Statute references validated successfully.");
-            } else {
-                updateStatusMessage("Invalid response from server.", "error");
-            }
-        },
-        error: function(xhr, status, error) {
-            hideLoading();
-            console.error("Error validating statutes:", error);
-            updateStatusMessage(`Error validating statutes: ${getErrorMessage(xhr)}`, "error");
-        }
-    });
-}
-
-/**
- * Display statute validation results
- */
-function showStatuteValidationResults(statutes) {
-    if (statutes.length === 0) {
-        $('#statuteResults').html(`
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                No statute references found in this document.
-            </div>
-        `);
-    } else {
-        let resultsHtml = '';
-        let outdatedCount = 0;
-        
-        // Process each statute
-        statutes.forEach(function(statute) {
-            const isCurrent = statute.is_current;
-            const statusClass = isCurrent ? 'statute-current' : 'statute-outdated';
-            const statusBadgeClass = isCurrent ? 'status-current' : 'status-outdated';
-            const statusText = isCurrent ? 'Current' : 'Outdated';
-            
-            if (!isCurrent) {
-                outdatedCount++;
-            }
-            
-            resultsHtml += `
-                <div class="statute-item ${statusClass}">
-                    <div class="statute-reference">${statute.reference}</div>
-                    <div class="statute-status ${statusBadgeClass}">${statusText}</div>
-                    <div class="statute-details">
-                        <small>Verified: ${new Date(statute.verified_at).toLocaleString()}</small>
-                        <br>
-                        <small>Source: ${statute.source_database || 'Unknown'}</small>
-                    </div>
-                </div>
-            `;
-        });
-        
-        // Add summary
-        resultsHtml = `
-            <div class="alert ${outdatedCount > 0 ? 'alert-warning' : 'alert-success'} mb-3">
-                <i class="fas ${outdatedCount > 0 ? 'fa-exclamation-triangle' : 'fa-check-circle'} me-2"></i>
-                Found ${statutes.length} statute references, ${outdatedCount} outdated.
-            </div>
-            ${resultsHtml}
-        `;
-        
-        $('#statuteResults').html(resultsHtml);
-    }
-    
-    // Show statute validation results
-    $('#analysisResults').addClass('d-none');
-    $('#statuteValidation').removeClass('d-none');
-}
-
-/**
- * Handle Insert Statute Results button click
- */
-function handleInsertStatuteResults() {
-    // Check if statutes are available
-    if (!appState.statutes || appState.statutes.length === 0) {
-        updateStatusMessage("No statute validation results to insert.", "error");
-        return;
-    }
-    
-    showLoading("Inserting statute validation results...");
-    
-    // Format statute validation results for Word
-    const content = formatStatuteResults(appState.statutes);
-    
-    // Insert into document
-    Office.context.document.setSelectedDataAsync(content, { coercionType: Office.CoercionType.Html }, function(result) {
-        hideLoading();
-        
-        if (result.status === Office.AsyncResultStatus.Succeeded) {
-            updateStatusMessage("Statute validation results inserted into document successfully.");
-        } else {
-            console.error("Error inserting statute results:", result.error);
-            updateStatusMessage("Error inserting statute validation results into document.", "error");
-        }
-    });
-}
-
-/**
- * Format statute validation results as HTML for Word
- */
-function formatStatuteResults(statutes) {
-    let outdatedCount = 0;
-    let statutesHtml = '';
-    
-    // Process each statute
-    statutes.forEach(function(statute) {
-        const isCurrent = statute.is_current;
-        const color = isCurrent ? '#198754' : '#dc3545';
-        const statusText = isCurrent ? 'Current' : 'Outdated';
-        
-        if (!isCurrent) {
-            outdatedCount++;
-        }
-        
-        statutesHtml += `
-            <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${statute.reference}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #dee2e6; color: ${color};">${statusText}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${statute.source_database || 'Unknown'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #dee2e6;">${new Date(statute.verified_at).toLocaleString()}</td>
-            </tr>
-        `;
-    });
-    
-    // Create the complete HTML
-    return `
-        <div style="font-family: 'Calibri', sans-serif; margin-bottom: 20px;">
-            <h2>Statute Validation Results</h2>
-            <p><strong>Total References:</strong> ${statutes.length}</p>
-            <p><strong>Outdated References:</strong> ${outdatedCount}</p>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                <thead>
-                    <tr style="background-color: #f8f9fa;">
-                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Reference</th>
-                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Status</th>
-                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Source</th>
-                        <th style="padding: 8px; text-align: left; border-bottom: 2px solid #dee2e6;">Verified</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${statutesHtml}
-                </tbody>
-            </table>
-            
-            <p style="margin-top: 15px; font-size: 11px; color: #6c757d;">
-                Report generated by Legal Document Analyzer on ${new Date().toLocaleString()}
-            </p>
-        </div>
-    `;
-}
-
-/**
- * Update status message
- */
+// Update status message
 function updateStatusMessage(message, type = 'info') {
-    const statusElement = $('#status-message');
+    var statusMessage = document.getElementById('statusMessage');
+    var messageText = statusMessage.querySelector('.ms-MessageBar-text');
     
-    statusElement.removeClass('alert-info alert-success alert-warning alert-danger');
+    // Update message text
+    messageText.textContent = message;
     
-    let alertClass = 'alert-info';
-    let icon = 'fa-info-circle';
+    // Update message type
+    statusMessage.className = 'ms-MessageBar';
     
-    switch(type) {
+    // Add appropriate style based on type
+    switch (type) {
         case 'success':
-            alertClass = 'alert-success';
-            icon = 'fa-check-circle';
-            break;
-        case 'warning':
-            alertClass = 'alert-warning';
-            icon = 'fa-exclamation-triangle';
+            statusMessage.classList.add('ms-MessageBar--success');
             break;
         case 'error':
-            alertClass = 'alert-danger';
-            icon = 'fa-exclamation-circle';
+            statusMessage.classList.add('ms-MessageBar--error');
+            break;
+        case 'warning':
+            statusMessage.classList.add('ms-MessageBar--warning');
+            break;
+        default:
+            statusMessage.classList.add('ms-MessageBar--info');
             break;
     }
-    
-    statusElement.addClass(alertClass);
-    statusElement.html(`<i class="fas ${icon} me-2"></i>${message}`);
 }
 
-/**
- * Show loading overlay
- */
+// Show loading overlay
 function showLoading(message = 'Processing...') {
-    $('.loading-message').text(message);
-    $('#loadingOverlay').removeClass('d-none');
+    document.querySelector('.loading-text').textContent = message;
+    document.getElementById('loadingOverlay').style.display = 'flex';
 }
 
-/**
- * Update loading message
- */
-function updateLoadingMessage(message) {
-    $('.loading-message').text(message);
-}
-
-/**
- * Hide loading overlay
- */
+// Hide loading overlay
 function hideLoading() {
-    $('#loadingOverlay').addClass('d-none');
+    document.getElementById('loadingOverlay').style.display = 'none';
 }
 
-/**
- * Check if the plugin is configured
- */
-function isConfigured() {
-    if (!appState.apiUrl || !appState.apiKey) {
-        updateStatusMessage("Please configure API URL and API Key first.", "error");
+// Load settings from storage
+function loadSettings() {
+    // Try to load from localStorage
+    try {
+        apiUrl = localStorage.getItem('legalAnalyzer_apiUrl') || '';
+        apiKey = localStorage.getItem('legalAnalyzer_apiKey') || '';
+        
+        // Update form fields
+        document.getElementById('apiUrl').value = apiUrl;
+        document.getElementById('apiKey').value = apiKey;
+        
+        return apiUrl && apiKey;
+    } catch (error) {
+        console.error('Error loading settings:', error);
+        return false;
+    }
+}
+
+// Save settings to storage
+function saveSettings() {
+    // Get values from form
+    apiUrl = document.getElementById('apiUrl').value.trim();
+    apiKey = document.getElementById('apiKey').value.trim();
+    
+    // Validate
+    if (!apiUrl) {
+        updateStatusMessage('Please enter a valid API URL.', 'error');
+        return;
+    }
+    
+    if (!apiKey) {
+        updateStatusMessage('Please enter a valid API Key.', 'error');
+        return;
+    }
+    
+    // Save to localStorage
+    try {
+        localStorage.setItem('legalAnalyzer_apiUrl', apiUrl);
+        localStorage.setItem('legalAnalyzer_apiKey', apiKey);
+        
+        updateStatusMessage('Settings saved successfully!', 'success');
+        return true;
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        updateStatusMessage('Error saving settings: ' + error.message, 'error');
+        return false;
+    }
+}
+
+// Check if settings are configured
+function checkSettings() {
+    if (!apiUrl || !apiKey) {
+        updateStatusMessage('Please configure your API settings first.', 'warning');
+        
+        // Switch to settings tab
+        document.getElementById('settingsTab').click();
         return false;
     }
     
     return true;
 }
 
-/**
- * Get error message from AJAX response
- */
-function getErrorMessage(xhr) {
-    if (xhr.responseJSON && xhr.responseJSON.error) {
-        return xhr.responseJSON.error;
-    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-        return xhr.responseJSON.message;
-    } else if (xhr.responseText) {
-        try {
-            const response = JSON.parse(xhr.responseText);
-            return response.error || response.message || xhr.statusText;
-        } catch(e) {
-            return xhr.responseText;
-        }
+// Analyze the current document
+function analyzeDocument() {
+    // Check settings
+    if (!checkSettings()) {
+        return;
     }
     
-    return xhr.statusText || "Unknown error";
+    // Show loading overlay
+    showLoading('Analyzing document...');
+    
+    // Get the document as text
+    Office.context.document.getFileAsync(Office.FileType.Text, { sliceSize: 65536 }, function(result) {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+            var file = result.value;
+            
+            // Read slices of the file
+            var documentContent = '';
+            var sliceCount = file.sliceCount;
+            var slicesReceived = 0;
+            
+            // Read each slice
+            file.getSliceAsync(0, function handleSlice(result) {
+                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                    var slice = result.value;
+                    documentContent += slice.data;
+                    slicesReceived++;
+                    
+                    // If all slices received, process the document
+                    if (slicesReceived === sliceCount) {
+                        // Close the file
+                        file.closeAsync(function() {
+                            // Create a File object from the content
+                            var docBlob = new Blob([documentContent], { type: 'text/plain' });
+                            var formData = new FormData();
+                            formData.append('file', docBlob, 'document.txt');
+                            
+                            // Send to API
+                            fetch(apiUrl + '/api/documents', {
+                                method: 'POST',
+                                headers: {
+                                    'X-API-Key': apiKey
+                                },
+                                body: formData
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('API request failed: ' + response.status);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                // Hide loading overlay
+                                hideLoading();
+                                
+                                // Store document ID
+                                documentId = data.id;
+                                
+                                // Display analysis results
+                                displayAnalysisResults(data);
+                                
+                                // Update status
+                                updateStatusMessage('Document analyzed successfully!', 'success');
+                            })
+                            .catch(error => {
+                                // Hide loading overlay
+                                hideLoading();
+                                
+                                // Show error
+                                console.error('Error analyzing document:', error);
+                                updateStatusMessage('Error analyzing document: ' + error.message, 'error');
+                            });
+                        });
+                    } else {
+                        // Get the next slice
+                        file.getSliceAsync(slicesReceived, handleSlice);
+                    }
+                } else {
+                    // Error getting slice
+                    file.closeAsync();
+                    hideLoading();
+                    updateStatusMessage('Error reading document: ' + result.error.message, 'error');
+                }
+            });
+        } else {
+            // Error getting file
+            hideLoading();
+            updateStatusMessage('Error accessing document: ' + result.error.message, 'error');
+        }
+    });
+}
+
+// Display analysis results
+function displayAnalysisResults(data) {
+    // Show results section
+    document.getElementById('analysisResults').style.display = 'block';
+    
+    // Display document info
+    var documentInfoDiv = document.getElementById('documentInfo');
+    documentInfoDiv.innerHTML = `
+        <div><strong>Document ID:</strong> ${data.id}</div>
+        <div><strong>Original Filename:</strong> ${data.original_filename || 'Unknown'}</div>
+        <div><strong>File Size:</strong> ${Math.round(data.file_size / 1024)} KB</div>
+        <div><strong>Content Type:</strong> ${data.content_type}</div>
+        <div><strong>Uploaded:</strong> ${new Date(data.uploaded_at).toLocaleString()}</div>
+    `;
+    
+    // Display statutes
+    var statutesListDiv = document.getElementById('statutesList');
+    
+    if (data.statutes && data.statutes.length > 0) {
+        var statutesHtml = '';
+        
+        data.statutes.forEach(function(statute) {
+            statutesHtml += `
+                <div class="statute-item ${statute.is_current ? '' : 'outdated'}">
+                    <div class="statute-reference">${statute.reference}</div>
+                    <div><strong>Status:</strong> ${statute.is_current ? 'Current' : 'Outdated or Amendment Exists'}</div>
+                    ${statute.content ? `<div><strong>Content:</strong> ${statute.content.substring(0, 100)}...</div>` : ''}
+                </div>
+            `;
+        });
+        
+        statutesListDiv.innerHTML = statutesHtml;
+    } else {
+        statutesListDiv.innerHTML = '<p>No statutes identified in this document.</p>';
+    }
+}
+
+// Generate a brief
+function generateBrief() {
+    // Check settings
+    if (!checkSettings()) {
+        return;
+    }
+    
+    // Check if we have a document ID
+    if (!documentId) {
+        updateStatusMessage('Please analyze a document first.', 'warning');
+        return;
+    }
+    
+    // Get form values
+    var title = document.getElementById('briefTitle').value.trim();
+    var focusAreasText = document.getElementById('briefFocusAreas').value.trim();
+    
+    // Process focus areas
+    var focusAreas = focusAreasText ? focusAreasText.split('\n').filter(line => line.trim().length > 0) : [];
+    
+    // Prepare request data
+    var requestData = {
+        document_id: documentId
+    };
+    
+    if (title) {
+        requestData.title = title;
+    }
+    
+    if (focusAreas.length > 0) {
+        requestData.focus_areas = focusAreas;
+    }
+    
+    // Show loading overlay
+    showLoading('Generating brief...');
+    
+    // Send to API
+    fetch(apiUrl + '/api/briefs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('API request failed: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Get the full brief
+        return fetch(apiUrl + '/api/briefs/' + data.id, {
+            method: 'GET',
+            headers: {
+                'X-API-Key': apiKey
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('API request failed: ' + response.status);
+            }
+            return response.json();
+        });
+    })
+    .then(brief => {
+        // Hide loading overlay
+        hideLoading();
+        
+        // Store current brief
+        currentBrief = brief;
+        
+        // Display brief
+        displayBrief(brief);
+        
+        // Update status
+        updateStatusMessage('Brief generated successfully!', 'success');
+    })
+    .catch(error => {
+        // Hide loading overlay
+        hideLoading();
+        
+        // Show error
+        console.error('Error generating brief:', error);
+        updateStatusMessage('Error generating brief: ' + error.message, 'error');
+    });
+}
+
+// Display brief
+function displayBrief(brief) {
+    // Show results section
+    document.getElementById('briefResults').style.display = 'block';
+    
+    // Set title
+    document.getElementById('briefResultTitle').textContent = brief.title;
+    
+    // Display content
+    document.getElementById('briefContent').textContent = brief.content;
+}
+
+// Insert brief into document
+function insertBrief() {
+    // Check if we have a brief
+    if (!currentBrief) {
+        updateStatusMessage('Please generate a brief first.', 'warning');
+        return;
+    }
+    
+    // Show loading overlay
+    showLoading('Inserting brief into document...');
+    
+    // Get the brief content
+    var title = currentBrief.title;
+    var content = currentBrief.content;
+    
+    // Insert into document
+    Office.context.document.setSelectedDataAsync(
+        title + '\n\n' + content,
+        { coercionType: Office.CoercionType.Text },
+        function(result) {
+            // Hide loading overlay
+            hideLoading();
+            
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                // Update status
+                updateStatusMessage('Brief inserted successfully!', 'success');
+            } else {
+                // Show error
+                updateStatusMessage('Error inserting brief: ' + result.error.message, 'error');
+            }
+        }
+    );
+}
+
+// Validate statutes
+function validateStatutes() {
+    // Check settings
+    if (!checkSettings()) {
+        return;
+    }
+    
+    // Check if we have a document ID
+    if (!documentId) {
+        updateStatusMessage('Please analyze a document first.', 'warning');
+        return;
+    }
+    
+    // Show loading overlay
+    showLoading('Validating statutes...');
+    
+    // Send to API
+    fetch(apiUrl + '/api/statutes?document_id=' + documentId, {
+        method: 'GET',
+        headers: {
+            'X-API-Key': apiKey
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('API request failed: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Hide loading overlay
+        hideLoading();
+        
+        // Display statute validation results
+        displayStatuteValidation(data.items);
+        
+        // Update status
+        updateStatusMessage('Statutes validated successfully!', 'success');
+    })
+    .catch(error => {
+        // Hide loading overlay
+        hideLoading();
+        
+        // Show error
+        console.error('Error validating statutes:', error);
+        updateStatusMessage('Error validating statutes: ' + error.message, 'error');
+    });
+}
+
+// Display statute validation results
+function displayStatuteValidation(statutes) {
+    // Show results section
+    document.getElementById('statutesResults').style.display = 'block';
+    
+    // Count statutes
+    var totalCount = statutes.length;
+    var outdatedCount = statutes.filter(statute => !statute.is_current).length;
+    
+    // Display summary
+    var summaryDiv = document.getElementById('statutesSummary');
+    
+    if (outdatedCount > 0) {
+        summaryDiv.innerHTML = `
+            <div class="ms-MessageBar ms-MessageBar--warning">
+                <div class="ms-MessageBar-content">
+                    <div class="ms-MessageBar-icon">
+                        <i class="ms-Icon ms-Icon--Warning"></i>
+                    </div>
+                    <div class="ms-MessageBar-text">
+                        <strong>Warning:</strong> ${outdatedCount} out of ${totalCount} statutes may be outdated or have amendments.
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        summaryDiv.innerHTML = `
+            <div class="ms-MessageBar ms-MessageBar--success">
+                <div class="ms-MessageBar-content">
+                    <div class="ms-MessageBar-icon">
+                        <i class="ms-Icon ms-Icon--Completed"></i>
+                    </div>
+                    <div class="ms-MessageBar-text">
+                        <strong>Good news!</strong> All ${totalCount} identified statutes appear to be current.
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display statutes
+    var statutesListDiv = document.getElementById('validatedStatutesList');
+    
+    if (statutes && statutes.length > 0) {
+        var statutesHtml = '';
+        
+        statutes.forEach(function(statute) {
+            statutesHtml += `
+                <div class="statute-item ${statute.is_current ? '' : 'outdated'}">
+                    <div class="statute-reference">${statute.reference}</div>
+                    <div><strong>Status:</strong> ${statute.is_current ? 'Current' : 'Outdated or Amendment Exists'}</div>
+                    ${statute.content ? `<div><strong>Content:</strong> ${statute.content.substring(0, 100)}...</div>` : ''}
+                    <div><strong>Last Verified:</strong> ${new Date(statute.verified_at).toLocaleString()}</div>
+                </div>
+            `;
+        });
+        
+        statutesListDiv.innerHTML = statutesHtml;
+    } else {
+        statutesListDiv.innerHTML = '<p>No statutes identified in this document.</p>';
+    }
 }

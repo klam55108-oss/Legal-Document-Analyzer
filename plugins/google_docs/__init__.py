@@ -1,56 +1,91 @@
 """
-Google Docs plugin for Legal Document Analyzer.
-
-This plugin enables integration with Google Docs, allowing users to:
-1. Analyze legal documents directly from Google Docs
-2. Generate legal briefs from Google Docs documents
-3. Check statute references in Google Docs documents
-4. Import analysis results back into Google Docs
+Google Docs plugin for the Legal Document Analyzer.
 """
-import logging
-from .docs_plugin import GoogleDocsPlugin
 
-logger = logging.getLogger(__name__)
+from plugins.common.base_plugin import BasePlugin
 
-# Plugin metadata
-PLUGIN_NAME = "Google Docs Integration"
-PLUGIN_DESCRIPTION = "Integrate Legal Document Analyzer with Google Docs"
-PLUGIN_VERSION = "1.0.0"
-PLUGIN_AUTHOR = "Legal Document Analyzer Team"
-PLUGIN_DOWNLOAD_URL = "https://example.com/plugins/google_docs"
+class GoogleDocsPlugin(BasePlugin):
+    """Google Docs plugin implementation."""
+    
+    def __init__(self, config=None):
+        """Initialize the Google Docs plugin."""
+        super().__init__(config or {})
+        self._name = "google_docs"
+        self._version = "1.0.0"
+        self._description = "Google Docs integration for Legal Document Analyzer"
+    
+    @property
+    def name(self):
+        """Get the plugin name."""
+        return self._name
+    
+    @property
+    def version(self):
+        """Get the plugin version."""
+        return self._version
+    
+    @property
+    def description(self):
+        """Get the plugin description."""
+        return self._description
+    
+    def _initialize(self):
+        """Initialize the plugin."""
+        # Initialization code for the Google Docs plugin
+        return True
+    
+    def get_manifest(self):
+        """
+        Get the plugin manifest.
+        
+        Returns:
+            dict: Plugin manifest
+        """
+        manifest = super().get_manifest()
+        manifest.update({
+            'platform': 'Google Docs',
+            'integration_type': 'Add-on',
+            'instructions': 'Install this add-on by creating a new Google Apps Script project and copying the provided code files.'
+        })
+        return manifest
+    
+    def get_integration_points(self):
+        """
+        Get the integration points for the plugin.
+        
+        Returns:
+            list: Integration points
+        """
+        return [
+            {
+                'name': 'Analyze Document',
+                'description': 'Analyze the current document for legal references.'
+            },
+            {
+                'name': 'Generate Brief',
+                'description': 'Generate a legal brief from the current document.'
+            },
+            {
+                'name': 'Validate Statutes',
+                'description': 'Validate statute references in the current document.'
+            }
+        ]
 
-# Global plugin instance
+# Create a singleton instance
 _plugin_instance = None
 
-def initialize(config=None):
+def get_plugin(config=None):
     """
-    Initialize the Google Docs plugin.
+    Get the plugin instance.
     
     Args:
         config (dict, optional): Plugin configuration
         
     Returns:
-        bool: True if initialization was successful, False otherwise
-    """
-    global _plugin_instance
-    
-    try:
-        _plugin_instance = GoogleDocsPlugin(config)
-        return _plugin_instance.initialize()
-    except Exception as e:
-        logger.error(f"Failed to initialize Google Docs plugin: {str(e)}")
-        return False
-        
-def get_plugin():
-    """
-    Get the plugin instance.
-    
-    Returns:
         GoogleDocsPlugin: Plugin instance
     """
     global _plugin_instance
-    
     if _plugin_instance is None:
-        initialize()
-        
+        _plugin_instance = GoogleDocsPlugin(config)
+        _plugin_instance.initialize()
     return _plugin_instance

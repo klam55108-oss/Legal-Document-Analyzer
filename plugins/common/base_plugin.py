@@ -56,7 +56,7 @@ class BasePlugin(ABC):
         Returns:
             bool: True if initialization was successful, False otherwise
         """
-        pass
+        return True
         
     def get_manifest(self):
         """

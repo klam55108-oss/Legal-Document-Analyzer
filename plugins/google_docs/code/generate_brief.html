@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 10px;
+      }
+      h2 {
+        color: #4285f4;
+        margin-top: 0;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="text"],
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      textarea {
+        height: 100px;
+        resize: vertical;
+      }
+      .btn {
+        padding: 8px 12px;
+        background-color: #4285f4;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        background-color: #357ae8;
+      }
+      .btn-secondary {
+        background-color: #f1f1f1;
+        color: #333;
+      }
+      .btn-secondary:hover {
+        background-color: #e4e4e4;
+      }
+      .footer {
+        text-align: right;
+        margin-top: 20px;
+      }
+      .loading {
+        display: none;
+        margin-top: 20px;
+        text-align: center;
+      }
+      .loading img {
+        width: 30px;
+        height: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Generate Legal Brief</h2>
+    
+    <form id="briefForm">
+      <div class="form-group">
+        <label for="title">Brief Title:</label>
+        <input type="text" id="title" name="title" placeholder="Enter brief title">
+      </div>
+      <div class="form-group">
+        <label for="focusAreas">Focus Areas (optional):</label>
+        <textarea id="focusAreas" name="focusAreas" placeholder="Enter specific areas to focus on, one per line"></textarea>
+      </div>
+      <div class="loading" id="loadingIndicator">
+        <p>Generating brief... This may take a few moments.</p>
+        <img src="https://www.gstatic.com/images/icons/material/system/2x/sync_grey600_24dp.png" class="spin">
+      </div>
+      <div class="footer">
+        <button type="button" class="btn btn-secondary" onclick="google.script.host.close()">Cancel</button>
+        <button type="submit" class="btn">Generate Brief</button>
+      </div>
+    </form>
+    
+    <script>
+      // Handle form submission
+      document.getElementById('briefForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Get form values
+        var title = document.getElementById('title').value.trim();
+        var focusAreasText = document.getElementById('focusAreas').value.trim();
+        
+        // Process focus areas
+        var focusAreas = focusAreasText ? focusAreasText.split('\n').map(function(area) {
+          return area.trim();
+        }).filter(function(area) {
+          return area.length > 0;
+        }) : [];
+        
+        // Show loading indicator
+        document.getElementById('loadingIndicator').style.display = 'block';
+        
+        // Disable form
+        var form = document.getElementById('briefForm');
+        var elements = form.elements;
+        for (var i = 0; i < elements.length; i++) {
+          elements[i].disabled = true;
+        }
+        
+        // Generate brief
+        google.script.run
+          .withSuccessHandler(function(brief) {
+            // Hide loading indicator
+            document.getElementById('loadingIndicator').style.display = 'none';
+            
+            // Ask if user wants to insert the brief into the document
+            if (confirm('Brief generated successfully. Would you like to insert it into the document?')) {
+              google.script.run
+                .withSuccessHandler(function() {
+                  google.script.host.close();
+                })
+                .withFailureHandler(function(error) {
+                  alert('Error inserting brief: ' + error.message);
+                  google.script.host.close();
+                })
+                .insertBrief(brief);
+            } else {
+              google.script.host.close();
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Hide loading indicator
+            document.getElementById('loadingIndicator').style.display = 'none';
+            
+            // Enable form
+            for (var i = 0; i < elements.length; i++) {
+              elements[i].disabled = false;
+            }
+            
+            // Show error
+            alert('Error generating brief: ' + error.message);
+          })
+          .generateBrief({
+            documentId: <?= scriptProperties.getProperty('DOC_ID') || 'null' ?>,
+            title: title || undefined,
+            focusAreas: focusAreas.length > 0 ? focusAreas : undefined
+          });
+      });
+    </script>
+  </body>
+</html>

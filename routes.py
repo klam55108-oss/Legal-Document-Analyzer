@@ -326,4 +326,103 @@ def setup_web_routes(app):
         from plugins import get_plugin_info
         
         plugins = get_plugin_info()
+        # Add download URLs
+        for plugin in plugins:
+            if plugin.get('name'):
+                plugin['download_url'] = url_for('download_plugin', plugin_name=plugin['name'])
+                
         return render_template('plugins.html', plugins=plugins)
+        
+    @app.route('/plugins/<plugin_name>/download')
+    @login_required
+    def download_plugin(plugin_name):
+        """Generate and download a plugin package."""
+        import tempfile
+        import zipfile
+        import shutil
+        import importlib
+        
+        # Check if the plugin exists
+        if plugin_name not in ['ms_word', 'google_docs']:
+            abort(404, description="Plugin not found")
+        
+        # Create temporary directory for plugin files    
+        temp_dir = tempfile.mkdtemp()
+        
+        try:
+            # Generate plugin files based on plugin type
+            if plugin_name == 'ms_word':
+                from plugins.ms_word import get_plugin
+                plugin = get_plugin()
+                
+                # Export plugin files
+                if not plugin or not plugin.export_add_in_files(temp_dir):
+                    abort(500, description="Failed to generate Microsoft Word plugin")
+                    
+                # Generate a zip file
+                zip_file_path = os.path.join(temp_dir, 'legal_document_analyzer_word.zip')
+                with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+                    # Add manifest file
+                    manifest_path = os.path.join(temp_dir, 'manifest.xml')
+                    if os.path.exists(manifest_path):
+                        zipf.write(manifest_path, os.path.basename(manifest_path))
+                        
+                    # Add assets directory
+                    assets_dir = os.path.join(temp_dir, 'assets')
+                    if os.path.exists(assets_dir):
+                        for root, dirs, files in os.walk(assets_dir):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                zipf.write(file_path, os.path.relpath(file_path, temp_dir))
+                
+                # Send the zip file
+                return send_from_directory(
+                    directory=temp_dir,
+                    path='legal_document_analyzer_word.zip',
+                    as_attachment=True,
+                    download_name='legal_document_analyzer_word.zip'
+                )
+                
+            elif plugin_name == 'google_docs':
+                from plugins.google_docs import get_plugin
+                plugin = get_plugin()
+                google_docs_module = importlib.import_module('plugins.google_docs')
+                
+                # Generate a zip file
+                zip_file_path = os.path.join(temp_dir, 'legal_document_analyzer_docs.zip')
+                with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+                    # Add plugin directory contents
+                    plugin_dir = os.path.dirname(os.path.abspath(google_docs_module.__file__))
+                    
+                    # Add appsscript.json
+                    appsscript_path = os.path.join(plugin_dir, 'appsscript.json')
+                    if os.path.exists(appsscript_path):
+                        zipf.write(appsscript_path, os.path.basename(appsscript_path))
+                        
+                    # Add any JavaScript files
+                    code_dir = os.path.join(plugin_dir, 'code')
+                    if os.path.exists(code_dir):
+                        for root, dirs, files in os.walk(code_dir):
+                            for file in files:
+                                if file.endswith('.js') or file.endswith('.html'):
+                                    file_path = os.path.join(root, file)
+                                    zipf.write(file_path, os.path.relpath(file_path, plugin_dir))
+                
+                # Send the zip file
+                return send_from_directory(
+                    directory=temp_dir,
+                    path='legal_document_analyzer_docs.zip',
+                    as_attachment=True,
+                    download_name='legal_document_analyzer_docs.zip'
+                )
+        except Exception as e:
+            logger.error(f"Error generating plugin package: {str(e)}")
+            abort(500, description=f"Failed to generate plugin package: {str(e)}")
+        finally:
+            # Clean up temporary directory
+            try:
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up temporary directory: {str(cleanup_error)}")
+                pass

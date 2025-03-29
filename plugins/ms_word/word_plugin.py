@@ -64,11 +64,6 @@ class MSWordPlugin(BasePlugin):
         """Set up the Microsoft Office Add-in manifest."""
         manifest_template = self._get_manifest_template()
         
-        # Configure manifest properties
-        manifest_template["ProviderName"] = "Legal Document Analyzer"
-        manifest_template["DisplayName"] = "Legal Document Analyzer for Word"
-        manifest_template["Description"] = self._description
-        
         # Save manifest to the plugin directory
         manifest_dir = os.path.dirname(os.path.abspath(__file__))
         manifest_path = os.path.join(manifest_dir, 'manifest.xml')

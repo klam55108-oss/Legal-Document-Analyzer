@@ -1,0 +1,26 @@
+{
+  "timeZone": "America/New_York",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.storage"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Legal Document Analyzer",
+      "logoUrl": "https://example.com/logo.png",
+      "universalActions": [{
+        "label": "Settings",
+        "runFunction": "showSettingsDialog"
+      }]
+    },
+    "docs": {
+      "homepageTrigger": {
+        "runFunction": "onOpen"
+      }
+    }
+  }
+}
