@@ -1,0 +1,124 @@
+{% extends 'layout.html' %}
+
+{% block title %}Create Knowledge Entry - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2>
+                <i class="fas fa-brain me-2 text-primary"></i> Create Knowledge Entry
+            </h2>
+            <p class="lead">Add new knowledge to your legal knowledge repository</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <h5 class="mb-0">Knowledge Entry Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('knowledge_create') }}">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-3">
+                            {{ form.title.label(class="form-label") }}
+                            {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                            {% if form.title.errors %}
+                                {% for error in form.title.errors %}
+                                <div class="invalid-feedback">
+                                    {{ error }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">Create a clear, descriptive title for this knowledge entry</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.content.label(class="form-label") }}
+                            {{ form.content(class="form-control" + (" is-invalid" if form.content.errors else ""), rows=10) }}
+                            {% if form.content.errors %}
+                                {% for error in form.content.errors %}
+                                <div class="invalid-feedback">
+                                    {{ error }}
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">
+                                Provide comprehensive content for this knowledge entry. 
+                                You can include formatting, lists, and other structured information.
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.source_type.label(class="form-label") }}
+                                {{ form.source_type(class="form-select" + (" is-invalid" if form.source_type.errors else "")) }}
+                                {% if form.source_type.errors %}
+                                    {% for error in form.source_type.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ error }}
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                <div class="form-text">Select the source type for this knowledge</div>
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.tags.label(class="form-label") }}
+                                {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else ""), placeholder="contract, litigation, employment") }}
+                                {% if form.tags.errors %}
+                                    {% for error in form.tags.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ error }}
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                <div class="form-text">Enter comma-separated tags to categorize this entry</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.is_verified(class="form-check-input" + (" is-invalid" if form.is_verified.errors else "")) }}
+                                {{ form.is_verified.label(class="form-check-label") }}
+                                {% if form.is_verified.errors %}
+                                    {% for error in form.is_verified.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ error }}
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                <div class="form-text">Check this if the information has been verified for accuracy</div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('knowledge_list') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i> Cancel
+                            </a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add rich text editor if available
+    if (typeof ClassicEditor !== 'undefined') {
+        ClassicEditor
+            .create(document.querySelector('#content'))
+            .catch(error => {
+                console.error(error);
+            });
+    }
+});
+</script>
+{% endblock %}

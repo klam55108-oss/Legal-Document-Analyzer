@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, SelectField, SelectMultipleField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 from models import User
 
@@ -27,3 +27,22 @@ class RegistrationForm(FlaskForm):
         user = User.query.filter_by(username=username.data).first()
         if user:
             raise ValidationError('That username is already taken. Please choose a different one.')
+            
+class KnowledgeEntryForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=255)])
+    content = TextAreaField('Content', validators=[DataRequired()])
+    source_type = SelectField('Source Type', choices=[
+        ('document', 'Document'),
+        ('expertise', 'Expert Knowledge'),
+        ('case_outcome', 'Case Outcome'),
+        ('precedent', 'Legal Precedent'),
+        ('other', 'Other')
+    ])
+    is_verified = BooleanField('Verified Information')
+    tags = StringField('Tags (comma separated)')
+    submit = SubmitField('Save Knowledge Entry')
+
+class KnowledgeSearchForm(FlaskForm):
+    query = StringField('Search Knowledge Base', validators=[Length(max=100)])
+    tags = SelectMultipleField('Filter by Tags')
+    submit = SubmitField('Search')

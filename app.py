@@ -60,12 +60,14 @@ with app.app_context():
     from api.documents import setup_document_routes
     from api.briefs import setup_brief_routes
     from api.statutes import setup_statute_routes
+    from api.knowledge import setup_knowledge_routes
     
     # Setup routes
     setup_auth_routes(app, api)
     setup_document_routes(app, api)
     setup_brief_routes(app, api)
     setup_statute_routes(app, api)
+    setup_knowledge_routes(app, api)
     
     # Import and register web routes
     from routes import setup_web_routes

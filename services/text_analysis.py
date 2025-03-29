@@ -2,6 +2,7 @@ import re
 import spacy
 import logging
 import os
+import sys
 from collections import defaultdict
 from models import Statute
 from datetime import datetime
@@ -26,14 +27,17 @@ try:
     nlp = spacy.load("en_core_web_sm")
     logger.info("Loaded spaCy model: en_core_web_sm")
 except OSError:
-    # Fallback to a smaller model if the larger one is not available
-    logger.warning("Could not load en_core_web_sm, attempting to load en_core_web_sm")
     try:
+        # Attempt to download the model
+        logger.warning("Could not load spaCy model, attempting to download en_core_web_sm")
+        import subprocess
+        subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"], check=True)
         nlp = spacy.load("en_core_web_sm")
-        logger.info("Loaded spaCy model: en_core_web_sm")
-    except OSError:
-        logger.error("No spaCy model available. Text analysis will be limited.")
+        logger.info("Downloaded and loaded spaCy model: en_core_web_sm")
+    except Exception as e:
+        logger.error(f"Failed to download spaCy model: {e}")
         nlp = None
+        logger.warning("NLP functionality will be limited")
 
 def analyze_document(text, document_id, use_openai=True):
     """
@@ -298,6 +302,97 @@ def extract_context(text, start, end, context_chars=100):
     
     # Format the context with the citation highlighted
     return f"{before} **{citation}** {after}"
+
+def analyze_text_for_topics(text, max_topics=5):
+    """
+    Analyze text to extract relevant legal topics.
+    
+    Args:
+        text (str): The text to analyze
+        max_topics (int, optional): Maximum number of topics to extract
+        
+    Returns:
+        list: List of extracted topic keywords
+    """
+    # Legal topics dictionary with related terms
+    legal_topics = {
+        'contract': ['agreement', 'clause', 'party', 'breach', 'consideration', 'term', 'obligation'],
+        'property': ['real estate', 'title', 'deed', 'ownership', 'land', 'easement', 'property'],
+        'tort': ['negligence', 'damages', 'injury', 'liability', 'duty of care', 'harm'],
+        'criminal': ['felony', 'misdemeanor', 'prosecution', 'defendant', 'crime', 'sentence'],
+        'constitutional': ['amendment', 'rights', 'freedom', 'constitution', 'government'],
+        'corporate': ['corporation', 'shareholder', 'board', 'director', 'officer', 'fiduciary'],
+        'intellectual_property': ['copyright', 'patent', 'trademark', 'license', 'infringement'],
+        'employment': ['worker', 'employee', 'discrimination', 'harassment', 'wage', 'termination'],
+        'family': ['divorce', 'custody', 'support', 'marriage', 'adoption', 'child'],
+        'immigration': ['visa', 'citizenship', 'asylum', 'deportation', 'alien', 'naturalization'],
+        'tax': ['income', 'deduction', 'tax', 'revenue', 'exemption', 'filing'],
+        'bankruptcy': ['creditor', 'debtor', 'discharge', 'bankruptcy', 'liquidation', 'restructuring'],
+        'environmental': ['pollution', 'conservation', 'regulation', 'compliance', 'sustainability'],
+        'international': ['treaty', 'jurisdiction', 'sovereignty', 'international', 'foreign'],
+        'administrative': ['agency', 'regulation', 'rulemaking', 'hearing', 'administrative'],
+        'healthcare': ['patient', 'provider', 'insurance', 'medical', 'hospital', 'healthcare'],
+        'antitrust': ['competition', 'monopoly', 'restraint of trade', 'market', 'price-fixing'],
+        'securities': ['stock', 'security', 'investor', 'offering', 'disclosure', 'securities']
+    }
+    
+    # Convert text to lowercase for case-insensitive matching
+    text_lower = text.lower()
+    
+    # Count occurrences of terms for each topic
+    topic_scores = defaultdict(int)
+    
+    for topic, terms in legal_topics.items():
+        for term in terms:
+            count = text_lower.count(term.lower())
+            topic_scores[topic] += count
+    
+    # Sort topics by score and take the top max_topics
+    top_topics = sorted(topic_scores.items(), key=lambda x: x[1], reverse=True)[:max_topics]
+    
+    # Filter out topics with no matches
+    top_topics = [topic for topic, score in top_topics if score > 0]
+    
+    # If no predefined topics were found, try to use NLP to extract topics
+    if not top_topics and nlp:
+        try:
+            doc = nlp(text[:10000])  # Process a portion of the text (for performance)
+            keywords = {}
+            
+            # Extract noun phrases and entities as potential topics
+            for chunk in doc.noun_chunks:
+                if 3 <= len(chunk.text) <= 30 and not chunk.text.lower().startswith(('the', 'a', 'an')):
+                    clean_text = chunk.text.lower().strip()
+                    keywords[clean_text] = keywords.get(clean_text, 0) + 1
+            
+            for ent in doc.ents:
+                if ent.label_ in ('ORG', 'GPE', 'PERSON', 'LAW', 'PRODUCT'):
+                    clean_text = ent.text.lower().strip()
+                    keywords[clean_text] = keywords.get(clean_text, 0) + 3  # Entities weighted higher
+            
+            # Get top keywords
+            top_keywords = sorted(keywords.items(), key=lambda x: x[1], reverse=True)[:max_topics]
+            top_topics = [kw for kw, _ in top_keywords]
+        except Exception as e:
+            logger.error(f"Error extracting NLP topics: {str(e)}")
+    
+    # Try using OpenAI if available and we need more topics
+    if len(top_topics) < 2 and os.environ.get("OPENAI_API_KEY"):
+        try:
+            # Use OpenAI to extract legal topics
+            from services.openai_service import extract_legal_concepts
+            ai_topics = extract_legal_concepts(text[:5000])  # Limit text for API call
+            
+            if ai_topics and 'topics' in ai_topics:
+                for topic in ai_topics['topics']:
+                    if topic.lower() not in [t.lower() for t in top_topics]:
+                        top_topics.append(topic)
+                        if len(top_topics) >= max_topics:
+                            break
+        except Exception as e:
+            logger.error(f"Error extracting OpenAI topics: {str(e)}")
+    
+    return top_topics
 
 def store_statutes(statutes, document_id):
     """Store extracted statutes in the database."""

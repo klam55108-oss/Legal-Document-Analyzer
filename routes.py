@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, flash, request, jsonify, s
 from flask_login import login_required, current_user, login_user, logout_user
 import os
 from app import app, db
-from models import User, Document, Brief, Statute
+from models import User, Document, Brief, Statute, KnowledgeEntry, Tag, Reference
 from services.document_parser import is_allowed_file
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,6 +10,15 @@ import logging
 from forms import LoginForm, RegistrationForm
 from datetime import datetime
 from services.brief_generator import generate_brief as brief_generator_service
+from services.knowledge_service import (
+    create_knowledge_entry, 
+    search_knowledge, 
+    get_knowledge_entry, 
+    update_knowledge_entry, 
+    delete_knowledge_entry, 
+    extract_knowledge_from_document,
+    get_trending_tags
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +81,12 @@ def setup_web_routes(app):
         """Render the user dashboard."""
         recent_documents = Document.query.filter_by(user_id=current_user.id).order_by(Document.uploaded_at.desc()).limit(5)
         recent_briefs = Brief.query.filter_by(user_id=current_user.id).order_by(Brief.generated_at.desc()).limit(5)
+        recent_knowledge = KnowledgeEntry.query.filter_by(user_id=current_user.id).order_by(KnowledgeEntry.created_at.desc()).limit(5)
         
         stats = {
             'document_count': Document.query.filter_by(user_id=current_user.id).count(),
             'brief_count': Brief.query.filter_by(user_id=current_user.id).count(),
+            'knowledge_count': KnowledgeEntry.query.filter_by(user_id=current_user.id).count(),
             'outdated_statutes': Statute.query.join(Document).filter(
                 Document.user_id == current_user.id,
                 Statute.is_current == False
@@ -85,6 +96,7 @@ def setup_web_routes(app):
         return render_template('dashboard.html', 
                               recent_documents=recent_documents, 
                               recent_briefs=recent_briefs,
+                              recent_knowledge=recent_knowledge,
                               stats=stats)
     
     @app.route('/documents', methods=['GET', 'POST'])
@@ -318,6 +330,232 @@ def setup_web_routes(app):
     @app.errorhandler(500)
     def server_error(e):
         return render_template('500.html'), 500
+    
+    # KnowledgeVault Routes
+    @app.route('/knowledge')
+    @login_required
+    def knowledge_list():
+        """List all knowledge entries with search functionality."""
+        from forms import KnowledgeSearchForm
+        
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        query = request.args.get('q', '')
+        tag_filter = request.args.get('tags', '').split(',') if request.args.get('tags') else None
+        
+        # Create search form
+        form = KnowledgeSearchForm()
+        
+        # Get all available tags for the dropdown
+        all_tags = Tag.query.all()
+        form.tags.choices = [(tag.name, tag.name) for tag in all_tags]
+        
+        # Get trending tags
+        trending_tags = get_trending_tags(limit=10)
+        
+        # Perform search if query exists
+        if query or tag_filter:
+            search_results = search_knowledge(query, current_user.id, tag_filter, limit=per_page, offset=(page-1)*per_page)
+            entries = search_results['entries']
+            total = search_results['total']
+            
+            # Create pagination object manually
+            from flask_sqlalchemy import Pagination
+            pagination = Pagination(query=None, page=page, per_page=per_page, 
+                                   total=total, items=entries)
+        else:
+            # Just get all entries with pagination
+            pagination = KnowledgeEntry.query.filter_by(user_id=current_user.id).order_by(
+                KnowledgeEntry.updated_at.desc()
+            ).paginate(page=page, per_page=per_page)
+        
+        return render_template('knowledge/list.html', 
+                              entries=pagination.items, 
+                              pagination=pagination,
+                              form=form,
+                              trending_tags=trending_tags,
+                              query=query)
+    
+    @app.route('/knowledge/create', methods=['GET', 'POST'])
+    @login_required
+    def knowledge_create():
+        """Create a new knowledge entry."""
+        from forms import KnowledgeEntryForm
+        
+        form = KnowledgeEntryForm()
+        
+        if form.validate_on_submit():
+            # Process tags
+            tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
+            
+            # Create the knowledge entry
+            try:
+                entry = create_knowledge_entry(
+                    title=form.title.data,
+                    content=form.content.data,
+                    user_id=current_user.id,
+                    source_type=form.source_type.data,
+                    is_verified=form.is_verified.data
+                )
+                
+                # Add tags if they don't already exist from auto-tagging
+                for tag_name in tag_names:
+                    tag = Tag.query.filter_by(name=tag_name.lower()).first()
+                    if not tag:
+                        tag = Tag(name=tag_name.lower(), user_id=current_user.id)
+                        db.session.add(tag)
+                        db.session.flush()
+                    
+                    if tag not in entry.tags:
+                        entry.tags.append(tag)
+                
+                db.session.commit()
+                
+                flash('Knowledge entry created successfully', 'success')
+                return redirect(url_for('knowledge_detail', entry_id=entry.id))
+            
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error creating knowledge entry: {str(e)}', 'danger')
+        
+        return render_template('knowledge/create.html', form=form)
+    
+    @app.route('/knowledge/<int:entry_id>')
+    @login_required
+    def knowledge_detail(entry_id):
+        """Show details of a specific knowledge entry."""
+        entry = KnowledgeEntry.query.filter_by(id=entry_id).first_or_404()
+        
+        # Get related document if available
+        document = None
+        if entry.document_id:
+            document = Document.query.get(entry.document_id)
+        
+        # Get related entries based on tags
+        related_entries = []
+        if entry.tags:
+            tag_ids = [tag.id for tag in entry.tags]
+            related_entries = KnowledgeEntry.query.filter(
+                KnowledgeEntry.id != entry_id,
+                KnowledgeEntry.tags.any(Tag.id.in_(tag_ids))
+            ).limit(5).all()
+        
+        return render_template('knowledge/detail.html', 
+                              entry=entry, 
+                              document=document,
+                              related_entries=related_entries)
+    
+    @app.route('/knowledge/<int:entry_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    def knowledge_edit(entry_id):
+        """Edit a knowledge entry."""
+        from forms import KnowledgeEntryForm
+        
+        entry = KnowledgeEntry.query.filter_by(id=entry_id, user_id=current_user.id).first_or_404()
+        
+        form = KnowledgeEntryForm(obj=entry)
+        
+        # For GET, prepare the tags field
+        if request.method == 'GET':
+            form.tags.data = ','.join([tag.name for tag in entry.tags])
+        
+        if form.validate_on_submit():
+            # Process tags
+            tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
+            
+            # Update the entry
+            try:
+                update_knowledge_entry(
+                    entry_id=entry.id,
+                    title=form.title.data,
+                    content=form.content.data,
+                    is_verified=form.is_verified.data,
+                    tags=tag_names
+                )
+                
+                # Also update the source type which isn't handled by update_knowledge_entry
+                entry.source_type = form.source_type.data
+                db.session.commit()
+                
+                flash('Knowledge entry updated successfully', 'success')
+                return redirect(url_for('knowledge_detail', entry_id=entry.id))
+            
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error updating knowledge entry: {str(e)}', 'danger')
+        
+        return render_template('knowledge/edit.html', form=form, entry=entry)
+    
+    @app.route('/knowledge/<int:entry_id>/delete', methods=['POST'])
+    @login_required
+    def knowledge_delete(entry_id):
+        """Delete a knowledge entry."""
+        entry = KnowledgeEntry.query.filter_by(id=entry_id, user_id=current_user.id).first_or_404()
+        
+        # Delete the entry
+        if delete_knowledge_entry(entry_id):
+            flash('Knowledge entry deleted successfully', 'success')
+        else:
+            flash('Failed to delete knowledge entry', 'danger')
+        
+        return redirect(url_for('knowledge_list'))
+    
+    @app.route('/knowledge/tags')
+    @login_required
+    def knowledge_tags():
+        """View all knowledge tags."""
+        # Get all tags with counts
+        tags_with_counts = get_trending_tags(limit=100)  # Get up to 100 tags
+        
+        return render_template('knowledge/tags.html', tags=tags_with_counts)
+    
+    @app.route('/knowledge/tag/<tag_name>')
+    @login_required
+    def knowledge_by_tag(tag_name):
+        """View knowledge entries by tag."""
+        tag = Tag.query.filter_by(name=tag_name.lower()).first_or_404()
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        
+        # Get entries with this tag
+        entries = KnowledgeEntry.query.filter(
+            KnowledgeEntry.tags.any(Tag.id == tag.id),
+            KnowledgeEntry.user_id == current_user.id
+        ).order_by(
+            KnowledgeEntry.updated_at.desc()
+        ).paginate(page=page, per_page=per_page)
+        
+        return render_template('knowledge/by_tag.html', 
+                              tag=tag, 
+                              entries=entries)
+    
+    @app.route('/documents/<int:document_id>/extract-knowledge', methods=['POST'])
+    @login_required
+    def document_extract_knowledge(document_id):
+        """Extract knowledge from a document automatically."""
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+        
+        # Ensure document is processed
+        if not document.processed:
+            flash('Document must be processed before extracting knowledge', 'danger')
+            return redirect(url_for('document_detail', document_id=document.id))
+        
+        # Extract knowledge
+        try:
+            entries = extract_knowledge_from_document(document, current_user.id)
+            
+            if entries:
+                flash(f'Successfully extracted {len(entries)} knowledge entries', 'success')
+            else:
+                flash('No knowledge entries could be extracted', 'warning')
+                
+            return redirect(url_for('document_detail', document_id=document.id))
+        
+        except Exception as e:
+            flash(f'Error extracting knowledge: {str(e)}', 'danger')
+            return redirect(url_for('document_detail', document_id=document.id))
         
     @app.route('/plugins')
     @login_required

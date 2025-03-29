@@ -152,6 +152,52 @@ def generate_document_summary(document_text, max_length=500):
         logger.error(f"Error generating summary with OpenAI: {str(e)}")
         return None
 
+def extract_legal_concepts(text):
+    """
+    Extract legal concepts and topics from text using OpenAI.
+    
+    Args:
+        text (str): The text to analyze
+        
+    Returns:
+        dict: Dictionary containing extracted topics and concepts
+    """
+    try:
+        if not OPENAI_API_KEY:
+            logger.warning("No OpenAI API key provided, skipping concept extraction")
+            return {
+                "topics": [],
+                "concepts": []
+            }
+            
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a legal concept extraction expert."},
+                {"role": "user", "content": f"""Extract the primary legal topics and concepts from this text.
+                
+                Return a JSON object with:
+                1. "topics": A list of 3-7 general legal topics covered (e.g., contract law, torts, intellectual property)
+                2. "concepts": A list of specific legal concepts mentioned, each with a name and short description
+                
+                Text to analyze:
+                {text[:5000]}
+                """}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.2
+        )
+        
+        return json.loads(response.choices[0].message.content)
+        
+    except Exception as e:
+        logger.error(f"Error extracting legal concepts with OpenAI: {str(e)}")
+        return {
+            "topics": [],
+            "concepts": [],
+            "error": str(e)
+        }
+
 def _create_document_prompt(document_text, document_type):
     """Create an appropriate prompt based on document type."""
     base_prompt = f"""Please analyze the following legal document and extract structured information.

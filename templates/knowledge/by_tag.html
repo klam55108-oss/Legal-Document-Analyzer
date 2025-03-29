@@ -1,0 +1,168 @@
+{% extends 'layout.html' %}
+
+{% block title %}Knowledge by Tag: {{ tag.name }} - Legal Document Analyzer{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-tag me-2 text-primary"></i> Tag: {{ tag.name }}
+            </h2>
+            {% if tag.description %}
+            <p class="lead">{{ tag.description }}</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a href="{{ url_for('knowledge_list') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i> Back to Knowledge Vault
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card border-secondary">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Knowledge Entries with Tag: {{ tag.name }}</h5>
+                    <span class="badge bg-secondary">{{ entries.total }} entries</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if entries.items %}
+                    <div class="list-group list-group-flush">
+                        {% for entry in entries.items %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">
+                                    <a href="{{ url_for('knowledge_detail', entry_id=entry.id) }}" class="text-decoration-none">
+                                        {{ entry.title }}
+                                    </a>
+                                </h5>
+                                <div>
+                                    {% if entry.is_verified %}
+                                    <span class="badge bg-success">Verified</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Unverified</span>
+                                    {% endif %}
+
+                                    {% if entry.source_type %}
+                                    <span class="badge bg-info">{{ entry.source_type|capitalize }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            {% if entry.summary %}
+                            <p class="mb-1">{{ entry.summary[:150] }}{% if entry.summary|length > 150 %}...{% endif %}</p>
+                            {% else %}
+                            <p class="mb-1">{{ entry.content[:150]|striptags }}{% if entry.content|length > 150 %}...{% endif %}</p>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <div>
+                                    {% if entry.tags %}
+                                    <div class="mb-1">
+                                        {% for tag in entry.tags %}
+                                        <a href="{{ url_for('knowledge_by_tag', tag_name=tag.name) }}" class="badge bg-secondary text-decoration-none me-1 {% if tag.name == tag.name %}bg-primary{% endif %}">
+                                            {{ tag.name }}
+                                        </a>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">
+                                    {{ entry.updated_at.strftime('%Y-%m-%d') }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if entries.pages > 1 %}
+                    <div class="card-footer">
+                        <nav aria-label="Knowledge navigation">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if entries.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('knowledge_by_tag', tag_name=tag.name, page=entries.prev_num) }}">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span>
+                                </li>
+                                {% endif %}
+                                
+                                {% for page_num in entries.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                                    {% if page_num %}
+                                        {% if page_num == entries.page %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                        {% else %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('knowledge_by_tag', tag_name=tag.name, page=page_num) }}">
+                                                {{ page_num }}
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if entries.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('knowledge_by_tag', tag_name=tag.name, page=entries.next_num) }}">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">Next <i class="fas fa-chevron-right"></i></span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center p-5">
+                        <i class="fas fa-tag fa-4x mb-3 text-muted"></i>
+                        <h5>No knowledge entries found with this tag</h5>
+                        <p class="mb-3">Try looking for a different tag</p>
+                        <a href="{{ url_for('knowledge_list') }}" class="btn btn-outline-primary">Back to Knowledge Vault</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card border-secondary">
+                <div class="card-header">
+                    <h5 class="mb-0">Related Tags</h5>
+                </div>
+                <div class="card-body">
+                    {% if related_tags %}
+                    <div class="d-flex flex-wrap">
+                        {% for related_tag in related_tags %}
+                        <a href="{{ url_for('knowledge_by_tag', tag_name=related_tag.name) }}" class="badge bg-secondary text-decoration-none mb-2 me-2 p-2">
+                            {{ related_tag.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mb-0 text-muted">No related tags found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
