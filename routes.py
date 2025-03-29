@@ -283,6 +283,16 @@ def setup_web_routes(app):
     def api_docs():
         """Display API documentation and the user's API key."""
         return render_template('api_docs.html', api_key=current_user.api_key)
+        
+    @app.route('/regenerate-api-key', methods=['POST'])
+    @login_required
+    def regenerate_api_key():
+        """Regenerate the API key for the current user."""
+        import uuid
+        current_user.api_key = str(uuid.uuid4())
+        db.session.commit()
+        flash('Your API key has been regenerated.', 'success')
+        return redirect(url_for('api_docs'))
     
     @app.route('/downloads/<path:filename>')
     @login_required

@@ -23,8 +23,8 @@
             </div>
             
             <div class="d-flex justify-content-end">
-                <form action="{{ url_for('api.regenerate_key') }}" method="post" onsubmit="return confirm('Are you sure you want to regenerate your API key? This will invalidate your current key immediately.');">
-                    <button type="submit" class="btn btn-warning">
+                <form action="{{ url_for('regenerate_api_key') }}" method="post" onsubmit="return confirm('Are you sure you want to regenerate your API key? This will invalidate your current key immediately.');">
+                    <button type="submit" class="btn btn-warning btn-animated">
                         <i class="fas fa-sync-alt me-2"></i> Regenerate API Key
                     </button>
                 </form>
