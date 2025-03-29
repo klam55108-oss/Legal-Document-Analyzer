@@ -19,22 +19,52 @@ def generate_brief(document, custom_title=None, focus_areas=None):
     Returns:
         Brief: The generated brief model instance
     """
-    logger.info(f"Generating brief for document ID: {document.id}")
+    import traceback
+    
+    if not document:
+        logger.error("Cannot generate brief: document is None")
+        raise ValueError("Document object is required")
+        
+    logger.info(f"Generating brief for document ID: {document.id}, file: {document.filename}")
     
     try:
+        # Check if file exists
+        if not os.path.exists(document.file_path):
+            logger.error(f"Document file not found: {document.file_path}")
+            raise ValueError(f"Document file not found: {document.file_path}")
+        
         # Parse the document text
+        logger.info(f"Parsing document from path: {document.file_path}")
         from services.document_parser import parse_document
         document_text = parse_document(document.file_path)
+        
+        # Check if we got valid text
+        if not document_text:
+            logger.error("Document parser returned empty content")
+            raise ValueError("Failed to extract text from document")
         
         # Check if we got a dictionary or string
         if isinstance(document_text, dict):
             # Extract the full text from the enhanced document
             document_text = document_text.get("full_text", "")
+            if not document_text:
+                logger.error("No full_text found in document_text dictionary")
+                raise ValueError("No full_text found in parsed document")
+        
+        logger.info(f"Document text extracted: {len(document_text)} characters")
         
         # Generate the brief content
+        logger.info("Creating brief content...")
         title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
         
+        if not content:
+            logger.error("Brief generation produced empty content")
+            raise ValueError("Generated brief content is empty")
+            
+        logger.info(f"Brief content created. Title: {title}, Content length: {len(content)}")
+        
         # Create the brief in the database
+        logger.info("Saving brief to database...")
         from app import db
         brief = Brief(
             title=title,
@@ -53,6 +83,7 @@ def generate_brief(document, custom_title=None, focus_areas=None):
         
     except Exception as e:
         logger.error(f"Error generating brief: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise ValueError(f"Failed to generate brief: {str(e)}")
 
 def create_brief_content(document_text, document, custom_title=None, focus_areas=None):
@@ -82,8 +113,9 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             else:
                 document_text = str(document_text)  # Fallback to string representation
     
-    # Check if we can use OpenAI
-    use_openai = os.environ.get("OPENAI_API_KEY") is not None
+    if not isinstance(document_text, str):
+        document_text = str(document_text)
+        logger.warning(f"Converted document_text to string: {type(document_text)}")
     
     # Generate a title if not provided
     if custom_title:
@@ -91,85 +123,31 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     else:
         title = generate_title(document_text, document.original_filename)
     
-    # Try to use OpenAI for enhanced brief generation
+    # Check if we can use OpenAI
+    use_openai = os.environ.get("OPENAI_API_KEY") is not None
+    
+    # Try to use our simplified OpenAI service for brief generation
     if use_openai:
         try:
             logger.info(f"Using OpenAI to generate brief for document {document.id}")
             
-            from openai import OpenAI
+            # Import our simplified OpenAI service
+            from services.openai_brief import generate_brief_with_openai
             
-            # Get API client
-            openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-            
-            # Prepare prompt for OpenAI with focus areas
-            focus_areas_text = ""
-            if focus_areas and isinstance(focus_areas, list):
-                focus_areas_text = "Focus especially on these areas:\n" + "\n".join([f"- {area}" for area in focus_areas])
-            
-            # Prepare document text (truncate if too long)
-            doc_content = document_text[:8000] if len(document_text) > 8000 else document_text
-            
-            # Generate a brief using OpenAI
-            logger.info("Calling OpenAI API to generate brief content")
-            response = openai_client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=[
-                    {"role": "system", "content": "You are a legal brief writer. Your task is to create a comprehensive legal brief based on the provided document."},
-                    {"role": "user", "content": f"""Create a detailed legal brief based on the following document content.
-                    
-                    Document title: {title.replace('Brief: ', '')}
-                    
-                    {focus_areas_text}
-                    
-                    Structure the brief with these sections:
-                    1. Introduction
-                    2. Factual Background
-                    3. Legal Issues
-                    4. Legal Analysis
-                    5. Conclusion
-                    
-                    Document content: {doc_content}
-                    
-                    Please format the brief in Markdown with appropriate headings.
-                    """}
-                ],
-                temperature=0.2,
-                max_tokens=3000
+            # Generate the brief using our simplified service
+            content, summary = generate_brief_with_openai(
+                document_text=document_text,
+                title=title.replace('Brief: ', ''),
+                focus_areas=focus_areas
             )
-            
-            # Get the brief content
-            openai_brief = response.choices[0].message.content
-            
-            logger.info("Brief content generated, now creating summary")
-            
-            # Generate a summary using OpenAI
-            summary_response = openai_client.chat.completions.create(
-                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
-                messages=[
-                    {"role": "system", "content": "You are a legal brief summarizer."},
-                    {"role": "user", "content": f"Provide a concise summary (150-200 words) of the following legal brief:\n\n{openai_brief[:2000]}"}
-                ],
-                temperature=0.3,
-                max_tokens=250
-            )
-            
-            summary = summary_response.choices[0].message.content
-            
-            # Add statute references to the content
-            statutes_section = generate_statutes_section(document)
-            if statutes_section:
-                if "## Statutory References" not in openai_brief:
-                    openai_brief += f"\n\n## Statutory References\n\n{statutes_section}\n\n"
-            
-            # Add generation note
-            openai_brief += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance. " \
-                          f"It should be reviewed for accuracy and completeness.*"
             
             logger.info(f"OpenAI brief generation successful for document {document.id}")
-            return title, openai_brief, summary
+            return title, content, summary
             
         except Exception as e:
+            import traceback
             logger.error(f"Error generating brief with OpenAI: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             logger.info("Falling back to traditional brief generation")
     
     # Traditional brief generation (fallback or if OpenAI is not available)

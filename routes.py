@@ -259,6 +259,11 @@ def setup_web_routes(app):
         focus_areas = [area.strip() for area in focus_areas_text.split('\n')] if focus_areas_text else None
         
         try:
+            # Log the inputs
+            logger.info(f"Generating brief for document {document_id}")
+            logger.info(f"Title: {title}")
+            logger.info(f"Focus areas: {focus_areas}")
+            
             # Generate brief using the brief generator service
             # Note: The parameters must match exactly what the service expects
             brief = brief_generator_service(document, title, focus_areas)
@@ -267,7 +272,9 @@ def setup_web_routes(app):
             return redirect(url_for('brief_detail', brief_id=brief.id))
             
         except Exception as e:
+            import traceback
             logger.error(f"Error generating brief: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             flash(f'Error generating brief: {str(e)}', 'danger')
             return redirect(url_for('document_detail', document_id=document.id))
     
