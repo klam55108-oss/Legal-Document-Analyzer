@@ -1,3 +1,6 @@
+"""
+Application factory module for creating and configuring the Flask app.
+"""
 import os
 import logging
 from flask import Flask
@@ -7,7 +10,7 @@ from flask_restful import Api
 from flask_login import LoginManager
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize SQLAlchemy with a custom base class
@@ -18,69 +21,76 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 
-# Create the Flask application
-app = Flask(__name__)
-app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key")
-
-# Configure database
-database_url = os.environ.get("DATABASE_URL", "sqlite:///legal_analyzer.db")
-# Fix for PostgreSQL URLs that start with 'postgres://'
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# Configure upload folder
-app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Initialize extensions with app
-db.init_app(app)
-login_manager.init_app(app)
-login_manager.login_view = 'web_login'
-
-# Create RESTful API
-api = Api(app)
-
-# Import and register blueprints and routes
-with app.app_context():
-    # Import models first so they are registered with SQLAlchemy
-    from models import User, Document, Brief, Statute
+def create_app():
+    """Create and configure the Flask application."""
+    # Create the Flask application
+    app = Flask(__name__)
+    app.secret_key = os.environ.get("SESSION_SECRET", "development-secret-key")
     
-    # Create database tables
-    db.create_all()
+    # Configure database
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
-    # Import routes after models to avoid circular imports
-    from api.auth import setup_auth_routes
-    from api.documents import setup_document_routes
-    from api.briefs import setup_brief_routes
-    from api.statutes import setup_statute_routes
-    from api.knowledge import setup_knowledge_routes
+    # Configure upload folder
+    app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
-    # Setup routes
-    setup_auth_routes(app, api)
-    setup_document_routes(app, api)
-    setup_brief_routes(app, api)
-    setup_statute_routes(app, api)
-    setup_knowledge_routes(app, api)
+    # Initialize extensions with app
+    db.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'web_login'
     
-    # Import and register web routes
-    from routes import setup_web_routes
-    setup_web_routes(app)
+    # Create RESTful API
+    api = Api(app)
     
-    # User loader for flask-login
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
+    # Health check endpoint
+    @app.route('/health')
+    def health_check():
+        return {"status": "healthy"}
+    
+    # Setup routes and services
+    with app.app_context():
+        # Import models
+        from models import User
+        
+        # Create database tables
+        db.create_all()
+        
+        # Set up login manager
+        @login_manager.user_loader
+        def load_user(user_id):
+            return User.query.get(int(user_id))
+            
+        # Initialize machine learning components
+        from ml_layer.config import MLConfig
+        MLConfig.setup_directories()
+            
+        # Import and setup routes
+        from routes import setup_web_routes
+        setup_web_routes(app)
+        
+        # Import and setup API endpoints
+        from api.auth import setup_auth_routes
+        from api.documents import setup_document_routes
+        from api.briefs import setup_brief_routes
+        from api.ml import register_ml_api
+        
+        setup_auth_routes(app, api)
+        setup_document_routes(app, api)
+        setup_brief_routes(app, api)
+        register_ml_api(api)
+        
+        # Initialize ML service
+        from services.ml_service import ml_service
+        
+        logger.info("Application initialized successfully")
+    
+    return app
 
-# Create a simple route to check if the app is running
-@app.route('/health')
-def health_check():
-    return {'status': 'ok'}, 200
-
-logger.info("Application initialized")
+# Create the application instance
+app = create_app()

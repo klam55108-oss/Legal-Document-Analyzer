@@ -95,7 +95,7 @@ class DocumentListResource(Resource):
         # Process the document asynchronously
         try:
             # Parse document content
-            text_content = document_parser.parse_document(file_path)
+            text_content = parse_document(file_path)
             
             # Analyze document to extract statutes and other legal references
             analysis_results = analyze_document(text_content, document.id)
@@ -238,7 +238,7 @@ def setup_document_routes(app, api):
         # Process the document
         try:
             # Parse document content
-            text_content = document_parser.parse_document(file_path)
+            text_content = parse_document(file_path)
             
             # Analyze document to extract statutes and other legal references
             analysis_results = analyze_document(text_content, document.id)

@@ -1,187 +1,172 @@
+"""
+Document parsing service for extracting text from various document formats.
+"""
 import os
-import PyPDF2
-import docx
 import logging
-from werkzeug.utils import secure_filename
-from services.openai_service import enhance_document_parsing, extract_legal_entities, generate_document_summary
-from services.openai_document import parse_document_with_openai
+import re
+import tempfile
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Union
+
+import PyPDF2
+from docx import Document as DocxDocument
 
 logger = logging.getLogger(__name__)
 
-def is_allowed_file(filename):
-    """Check if a file has an allowed extension."""
-    from app import app
-    allowed_extensions = app.config.get('ALLOWED_EXTENSIONS', {'pdf', 'doc', 'docx', 'txt', 'rtf'})
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+# Define allowed file extensions
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'rtf'}
 
-def parse_document(file_path, use_openai=True, document_type=None):
+def is_allowed_file(filename):
     """
-    Parse the content of a document based on its file type.
+    Check if a file has an allowed extension.
     
     Args:
-        file_path (str): Path to the document file
-        use_openai (bool): Whether to use OpenAI to enhance parsing
-        document_type (str, optional): Type of document if known
+        filename: The name of the file to check
         
     Returns:
-        Union[str, dict]: Either the raw text content or enhanced content dictionary
-        
-    Raises:
-        ValueError: If the file type is not supported or parsing fails
+        True if the file extension is allowed, False otherwise
     """
-    if not os.path.exists(file_path):
-        raise ValueError(f"File does not exist: {file_path}")
-    
-    file_extension = os.path.splitext(file_path)[1].lower()
-    
-    try:
-        # Extract raw text based on file type
-        raw_text = ""
-        
-        # Parse PDF files
-        if file_extension == '.pdf':
-            raw_text = parse_pdf(file_path)
-        
-        # Parse Word documents
-        elif file_extension == '.docx':
-            raw_text = parse_docx(file_path)
-        
-        # Parse old Word documents (.doc)
-        elif file_extension == '.doc':
-            raw_text = parse_doc(file_path)
-        
-        # Parse plain text files
-        elif file_extension in ['.txt', '.rtf']:
-            raw_text = parse_text_file(file_path)
-        
-        else:
-            raise ValueError(f"Unsupported file type: {file_extension}")
-        
-        # Use OpenAI to enhance the document parsing if requested
-        if use_openai and raw_text:
-            logger.info(f"Enhancing document parsing for {file_path} with OpenAI")
-            try:
-                # Try our new dedicated OpenAI document parser first
-                try:
-                    logger.info("Using enhanced OpenAI document parser")
-                    enhanced_content = parse_document_with_openai(raw_text, document_type)
-                    logger.info(f"Enhanced document parsing successful with new parser")
-                    return enhanced_content
-                except Exception as e1:
-                    logger.warning(f"Enhanced OpenAI document parser failed: {str(e1)}, falling back to standard parser")
-                    
-                    # Fall back to original parser
-                    enhanced_content = enhance_document_parsing(raw_text, document_type)
-                    
-                    # Extract legal entities if not already included
-                    if "legal_citations" not in enhanced_content or not enhanced_content["legal_citations"]:
-                        legal_entities = extract_legal_entities(raw_text)
-                        enhanced_content["legal_entities"] = legal_entities
-                    
-                    # Generate summary if not already included
-                    if "summary" not in enhanced_content or not enhanced_content["summary"]:
-                        summary = generate_document_summary(raw_text)
-                        enhanced_content["summary"] = summary
-                    
-                    return enhanced_content
-            except Exception as e:
-                logger.error(f"All OpenAI enhancement methods failed for {file_path}: {str(e)}")
-                # Return raw text if OpenAI enhancement fails
-                return {"full_text": raw_text, "error": str(e)}
-        
-        # Return raw text if OpenAI is not used
-        return raw_text
-            
-    except Exception as e:
-        logger.error(f"Error parsing document {file_path}: {str(e)}")
-        raise ValueError(f"Failed to parse document: {str(e)}")
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def parse_pdf(file_path):
-    """Extract text from a PDF file."""
-    text = ""
+class DocumentParser:
+    """Service for parsing different document formats."""
     
-    try:
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
+    def __init__(self):
+        """Initialize the document parser."""
+        logger.info("Document parser initialized")
+        
+    def parse_document(self, file_path: str) -> str:
+        """
+        Parse a document and extract its text content.
+        
+        Args:
+            file_path: Path to the document file
             
-            # Extract text from each page
-            for page_num in range(len(pdf_reader.pages)):
-                page = pdf_reader.pages[page_num]
-                text += page.extract_text() + "\n"
+        Returns:
+            The extracted text content
+        """
+        # Get file extension
+        _, ext = os.path.splitext(file_path.lower())
+        
+        try:
+            # Route to appropriate parser based on extension
+            if ext == '.pdf':
+                return self._parse_pdf(file_path)
+            elif ext in ['.docx', '.doc']:
+                return self._parse_docx(file_path)
+            elif ext == '.txt':
+                return self._parse_txt(file_path)
+            else:
+                raise ValueError(f"Unsupported file format: {ext}")
+        except Exception as e:
+            logger.error(f"Error parsing document {file_path}: {str(e)}")
+            raise
+            
+    def _parse_pdf(self, file_path: str) -> str:
+        """
+        Extract text from a PDF file.
+        
+        Args:
+            file_path: Path to the PDF file
+            
+        Returns:
+            The extracted text content
+        """
+        try:
+            text = ""
+            with open(file_path, 'rb') as file:
+                pdf_reader = PyPDF2.PdfReader(file)
                 
-        if not text.strip():
-            # If PyPDF2 fails to extract text (e.g., from scanned PDFs),
-            # we could try another library or OCR here
-            logger.warning(f"PyPDF2 extracted empty text from {file_path}")
+                # Extract text from each page
+                for page_num in range(len(pdf_reader.pages)):
+                    page = pdf_reader.pages[page_num]
+                    text += page.extract_text() + "\n\n"
+                    
+            # Clean up text
+            text = self._clean_text(text)
             
-        return text
+            return text
+        except Exception as e:
+            logger.error(f"Error parsing PDF: {str(e)}")
+            raise
             
-    except Exception as e:
-        logger.error(f"Error parsing PDF {file_path}: {str(e)}")
-        raise ValueError(f"Failed to parse PDF: {str(e)}")
-
-def parse_docx(file_path):
-    """Extract text from a .docx file."""
-    text = ""
-    
-    try:
-        doc = docx.Document(file_path)
+    def _parse_docx(self, file_path: str) -> str:
+        """
+        Extract text from a DOCX file.
         
-        # Extract text from each paragraph
-        for para in doc.paragraphs:
-            text += para.text + "\n"
+        Args:
+            file_path: Path to the DOCX file
             
-        # Extract text from tables
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    text += cell.text + " "
+        Returns:
+            The extracted text content
+        """
+        try:
+            doc = DocxDocument(file_path)
+            
+            # Extract text from paragraphs
+            text = "\n".join([para.text for para in doc.paragraphs])
+            
+            # Extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        text += cell.text + "\n"
+                    text += "\n"
                 text += "\n"
                 
-        return text
+            # Clean up text
+            text = self._clean_text(text)
             
-    except Exception as e:
-        logger.error(f"Error parsing DOCX {file_path}: {str(e)}")
-        raise ValueError(f"Failed to parse DOCX: {str(e)}")
-
-def parse_doc(file_path):
-    """
-    Extract text from a .doc file.
-    
-    Note: This is a simplified implementation. For production,
-    you might want to use a library like textract or an external
-    service for better .doc file support.
-    """
-    try:
-        # For this example, we'll use a simplistic approach
-        # In a real implementation, consider using textract or similar library
-        with open(file_path, 'rb') as file:
-            content = file.read()
+            return text
+        except Exception as e:
+            logger.error(f"Error parsing DOCX: {str(e)}")
+            raise
             
-        # Extract readable text from binary content
-        # This is a very simplified approach and won't work well
-        text = ""
-        for byte in content:
-            # Only include ASCII printable characters
-            if 32 <= byte <= 126:
-                text += chr(byte)
+    def _parse_txt(self, file_path: str) -> str:
+        """
+        Extract text from a TXT file.
         
-        # Clean up the text a bit
-        text = ' '.join(text.split())
+        Args:
+            file_path: Path to the TXT file
+            
+        Returns:
+            The extracted text content
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
+                text = file.read()
+                
+            # Clean up text
+            text = self._clean_text(text)
+            
+            return text
+        except Exception as e:
+            logger.error(f"Error parsing TXT: {str(e)}")
+            raise
+            
+    def _clean_text(self, text: str) -> str:
+        """
+        Clean up extracted text.
         
-        logger.warning(f"Used simplified .doc parser for {file_path} - results may be poor")
-        return text
+        Args:
+            text: The text to clean
             
-    except Exception as e:
-        logger.error(f"Error parsing DOC {file_path}: {str(e)}")
-        raise ValueError(f"Failed to parse DOC: {str(e)}")
-
-def parse_text_file(file_path):
-    """Extract text from a plain text file."""
-    try:
-        with open(file_path, 'r', encoding='utf-8', errors='replace') as file:
-            return file.read()
+        Returns:
+            The cleaned text
+        """
+        if not text:
+            return ""
             
-    except Exception as e:
-        logger.error(f"Error parsing text file {file_path}: {str(e)}")
-        raise ValueError(f"Failed to parse text file: {str(e)}")
+        # Remove excessive whitespace
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Fix line breaks
+        text = re.sub(r'(\w) *\n *(\w)', r'\1 \2', text)
+        
+        # Restore paragraph breaks
+        text = re.sub(r'(\.) *\n *([A-Z])', r'.\n\n\2', text)
+        
+        return text.strip()
+        
+# Create a singleton instance
+document_parser = DocumentParser()

@@ -1,7 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user, login_user, logout_user
 import os
-from app import app, db
+from app import db
 from models import User, Document, Brief, Statute, KnowledgeEntry, Tag, Reference
 from services.document_parser import is_allowed_file
 from werkzeug.utils import secure_filename
@@ -125,10 +125,11 @@ def setup_web_routes(app):
                 filename = secure_filename(file.filename)
                 timestamp = int(datetime.now().timestamp())
                 unique_filename = f"{timestamp}_{filename}"
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                file_path = os.path.join(upload_folder, unique_filename)
                 
                 # Ensure upload directory exists
-                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                os.makedirs(upload_folder, exist_ok=True)
                 
                 # Save the file
                 file.save(file_path)
@@ -149,10 +150,10 @@ def setup_web_routes(app):
                 # Process document in background or queue
                 try:
                     from services.text_analysis import analyze_document
-                    from services.document_parser import parse_document
+                    from services.document_parser import document_parser
                     
                     # Parse document text
-                    document_text = parse_document(file_path)
+                    document_text = document_parser.parse_document(file_path)
                     
                     # Analyze the document content
                     analysis_results = analyze_document(document_text, new_document.id)
@@ -316,8 +317,9 @@ def setup_web_routes(app):
         if not document:
             abort(404, description="File not found or you don't have permission to access it.")
             
+        upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
         return send_from_directory(
-            directory=app.config['UPLOAD_FOLDER'], 
+            directory=upload_folder, 
             path=filename,
             as_attachment=True,
             download_name=document.original_filename

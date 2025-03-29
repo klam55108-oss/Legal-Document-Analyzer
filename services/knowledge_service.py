@@ -319,12 +319,12 @@ def extract_knowledge_from_document(document, user_id):
     Returns:
         list: List of created KnowledgeEntry instances
     """
-    from services.document_parser import parse_document
+    from services.document_parser import document_parser
     
     # Parse the document if not already processed
     if not document.processed:
         try:
-            document_text = parse_document(document.file_path)
+            document_text = document_parser.parse_document(document.file_path)
             document.processed = True
             db.session.commit()
         except Exception as e:
