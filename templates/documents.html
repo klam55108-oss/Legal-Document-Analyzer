@@ -255,7 +255,7 @@
                         <i class="fas fa-file-upload upload-icon"></i>
                         <h5>Drag and drop your document here</h5>
                         <p class="text-muted">or</p>
-                        <input type="file" class="form-control" id="file" name="file" required>
+                        {{ form.file(class="form-control", required=true) }}
                         <div class="upload-progress d-none mt-3">
                             <div class="upload-progress-bar" style="width: 0%"></div>
                         </div>
@@ -270,9 +270,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-animated" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary btn-animated">
-                        <i class="fas fa-upload me-2"></i> Upload & Analyze
-                    </button>
+                    {{ form.submit(class="btn btn-primary btn-animated", value="Upload & Analyze") }}
                 </div>
             </form>
         </div>
@@ -412,7 +410,7 @@
         
         // File upload enhancements
         const uploadArea = document.querySelector('.upload-area');
-        const fileInput = document.getElementById('file');
+        const fileInput = document.querySelector('.upload-area input[type="file"]');
         
         if (uploadArea && fileInput) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -512,9 +510,9 @@
                         progressBar.style.width = '100%';
                         
                         // Change the submit button to show processing
-                        const submitBtn = form.querySelector('button[type="submit"]');
+                        const submitBtn = form.querySelector('input[type="submit"]');
                         if (submitBtn) {
-                            submitBtn.innerHTML = '<span class="loading-icon"></span> Processing...';
+                            submitBtn.value = 'Processing...';
                             submitBtn.disabled = true;
                         }
                     }, {once: true});
