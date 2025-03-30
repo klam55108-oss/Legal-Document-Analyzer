@@ -1,17 +1,15 @@
 """
 Application factory module for creating and configuring the Flask app.
 """
-import datetime
 import os
 import logging
 import traceback
-from flask import Flask, render_template
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_restful import Api
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect, CSRFError
-from flask_session import Session
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
@@ -28,7 +26,6 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
-sess = Session()
 
 def create_app():
     """Create and configure the Flask application."""
@@ -36,38 +33,17 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "development-secret-key")
     
-    # Configure session
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_PERMANENT'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
-    app.config['SESSION_USE_SIGNER'] = True
-    app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
-    os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
-    
-    # Configure CSRF protection
-    app.config['WTF_CSRF_TIME_LIMIT'] = None  # Remove time limit on CSRF tokens
-    app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow CSRF to work without HTTPS in development
-    app.config['WTF_CSRF_ENABLED'] = True
-    
-    # Define CSRF error handler to provide clearer errors
-    @app.errorhandler(CSRFError)
-    def handle_csrf_error(e):
-        logger.error(f"CSRF error: {e.description}")
-        return render_template('csrf_error.html', reason=e.description), 400
-    
     # Configure database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_recycle": 300,  # Recycle connections after 5 minutes
-        "pool_pre_ping": True,  # Check connection validity before using
-        "pool_size": 10,  # Allow 10 concurrent connections
-        "max_overflow": 20,  # Allow 20 additional connections during load peaks
-        "pool_timeout": 30,  # Wait 30 seconds for a connection
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_timeout": 30,
         "pool_reset_on_return": "rollback",  # Always rollback incomplete transactions on connection return
-        "isolation_level": "AUTOCOMMIT",  # Use PostgreSQL autocommit mode to avoid transaction issues
         "connect_args": {
-            "options": "-c statement_timeout=15000",  # 15 second query timeout
-            "application_name": "LegalDataInsights",  # Identify app in Postgres logs
+            "options": "-c statement_timeout=15000"  # 15 second query timeout
         }
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -82,7 +58,6 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'web_login'
     csrf.init_app(app)
-    sess.init_app(app)
     
     # This will be handled by the db_utils module instead to unify all database error handling
     from utils.db_utils import setup_engine_event_listeners
@@ -168,10 +143,10 @@ def create_app():
         @login_manager.user_loader
         def load_user(user_id):
             try:
-                # Create a fresh session just for this operation
-                user = User.query.get(int(user_id))
-                db.session.commit()  # Commit the transaction to avoid lingering state
-                return user
+                # Explicitly begin a new transaction just for this operation
+                with db.session.begin_nested():
+                    user = User.query.get(int(user_id))
+                    return user
             except Exception as e:
                 # Log the error and handle gracefully
                 logger.error(f"Error loading user {user_id}: {str(e)}")

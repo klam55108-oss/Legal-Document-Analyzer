@@ -94,24 +94,6 @@ def with_db_retry(max_retries=3, retry_delay=0.5):
         return wrapper
     return decorator
 
-# Define error handler at module level instead of nested inside setup_engine_event_listeners
-def db_handle_error(context):
-    """Handle database errors at the engine level."""
-    global db_healthy
-    db_healthy = False
-    
-    # Get the exception from the context
-    exc = context.original_exception
-    logger.error(f"Database error: {str(exc)}")
-    
-    # Try to recover from the error by forcing a connection reset
-    try:
-        if hasattr(context, 'connection'):
-            context.connection.connection.rollback()
-            logger.info("Forced connection rollback after error")
-    except Exception as e:
-        logger.error(f"Failed to rollback connection: {str(e)}")
-
 def setup_engine_event_listeners(engine):
     """
     Set up event listeners for database connection errors.
@@ -160,17 +142,26 @@ def setup_engine_event_listeners(engine):
         if branch:
             # Connection is a sub-connection of an existing connection
             return
-        
-        # Don't leave connections in a transaction
-        conn.execute(sqlalchemy.text("ROLLBACK"))
             
         # Check for broken connections
         if not check_connection(conn):
             conn.invalidate()  # Mark as invalid so it gets replaced
             raise OperationalError("Database connection failed validation check")
     
-    # Register the module-level error handler
-    event.listen(engine, "handle_error", db_handle_error)
+    @event.listens_for(engine, "handle_error")
+    def handle_error(context, *args, **kwargs):
+        """Handle database errors at the engine level."""
+        global db_healthy
+        db_healthy = False
+        logger.error(f"Database error: {str(context.original_exception)}")
+        
+        # Try to recover from the error by forcing a connection reset
+        try:
+            if hasattr(context, 'connection'):
+                context.connection.connection.rollback()
+                logger.info("Forced connection rollback after error")
+        except Exception as e:
+            logger.error(f"Failed to rollback connection: {str(e)}")
 
 def init_app(app, db):
     """

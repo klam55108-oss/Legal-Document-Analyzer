@@ -14,11 +14,11 @@
                     <form method="POST" action="{{ url_for('web_login') }}">
                         {{ form.hidden_tag() }}
                         <div class="mb-3">
-                            {{ form.username.label(class="form-label") }}
-                            {{ form.username(class="form-control", required=true, autofocus=true) }}
-                            {% if form.username.errors %}
+                            {{ form.email.label(class="form-label") }}
+                            {{ form.email(class="form-control", required=true, autofocus=true) }}
+                            {% if form.email.errors %}
                                 <div class="invalid-feedback d-block">
-                                    {% for error in form.username.errors %}
+                                    {% for error in form.email.errors %}
                                         {{ error }}
                                     {% endfor %}
                                 </div>

@@ -102,19 +102,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.disabled = true;
                 
                 try {
-                    // Get API token if available
-                    const apiTokenMeta = document.querySelector('meta[name="api-token"]');
-                    const headers = {
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    if (apiTokenMeta) {
-                        headers['Authorization'] = 'Bearer ' + apiTokenMeta.getAttribute('content');
-                    }
-                    
                     const response = await fetch(`/api/statutes/${statuteId}`, {
                         method: 'PUT',
-                        headers: headers
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + document.querySelector('meta[name="api-token"]').getAttribute('content')
+                        }
                     });
                     
                     const data = await response.json();

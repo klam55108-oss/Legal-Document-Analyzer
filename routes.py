@@ -8,10 +8,6 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from forms import LoginForm, RegistrationForm, RequestPasswordResetForm, ResetPasswordForm
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 from services.email_service import email_service
 from datetime import datetime
 from services.brief_generator import generate_brief as brief_generator_service
@@ -26,6 +22,8 @@ from services.knowledge_service import (
 )
 from services.onboarding_service import OnboardingService
 
+logger = logging.getLogger(__name__)
+
 def setup_web_routes(app):
     @app.route('/')
     def index():
@@ -36,58 +34,23 @@ def setup_web_routes(app):
     def web_login():
         """Handle user login."""
         if current_user.is_authenticated:
-            logger.info(f"Already authenticated user: {current_user.username}")
             return redirect(url_for('dashboard'))
             
         form = LoginForm()
-        logger.info(f"Login form received: {request.method}")
-        
         if form.validate_on_submit():
-            logger.info(f"Form validated, attempting login for user: {form.username.data}")
-            
-            # Always start with a clean session
-            db.session.close()
-            
             try:
-                # First query user without any transaction
-                user = User.query.filter_by(username=form.username.data).first()
-                logger.info(f"User found: {user is not None}")
+                user = User.query.filter_by(email=form.email.data).first()
                 
                 if user and user.check_password(form.password.data):
-                    logger.info(f"Password validated for user: {user.username}")
-                    
-                    # Complete the login
                     login_user(user, remember=form.remember.data)
-                    logger.info(f"User logged in successfully: {user.id}")
-                    
-                    # Check if user has onboarding progress in a separate operation
-                    user_id = user.id  # Capture user ID
-                    
-                    # Check for onboarding progress
-                    from models import OnboardingProgress
-                    progress = OnboardingProgress.query.filter_by(user_id=user_id).first()
-                    
-                    if not progress:
-                        # If there's no progress record, create one in a separate transaction
-                        logger.info(f"Creating onboarding progress for existing user: {user_id}")
-                        progress = OnboardingProgress(user_id=user_id)
-                        db.session.add(progress)
-                        db.session.commit()
-                        logger.info(f"Created onboarding progress for user: {user_id}")
-                    
                     next_page = request.args.get('next')
                     return redirect(next_page or url_for('dashboard'))
                 else:
-                    logger.warning(f"Invalid login attempt for username: {form.username.data}")
-                    flash('Invalid username or password', 'danger')
+                    flash('Invalid email or password', 'danger')
             except Exception as e:
-                # Roll back any pending changes on error
                 db.session.rollback()
                 logger.error(f"Error during login: {str(e)}")
                 flash('An error occurred during login. Please try again.', 'danger')
-            finally:
-                # Always ensure we end with a clean session
-                db.session.close()
                 
         return render_template('login.html', form=form)
         
@@ -98,44 +61,21 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
         
         form = RegistrationForm()
-        logger.info(f"Registration form received: {request.method}")
-        
         if form.validate_on_submit():
-            logger.info(f"Form validated: {form.username.data}, {form.email.data}")
-            
-            # Always make sure we're starting fresh
-            db.session.close()
-            
             try:
                 # Create new user
                 user = User(username=form.username.data, email=form.email.data)
                 user.set_password(form.password.data)
                 
-                logger.info("Adding user to database")
                 db.session.add(user)
-                db.session.flush()  # Get the ID before committing
-                user_id = user.id
-                logger.info(f"User created with ID: {user_id}")
-                
-                # Create onboarding progress record in the same transaction
-                from models import OnboardingProgress
-                progress = OnboardingProgress(user_id=user_id)  # Use user ID directly
-                db.session.add(progress)
-                
-                # Commit everything at once to avoid nested transaction issues
                 db.session.commit()
-                logger.info(f"Completed registration for user: {user_id}")
                 
                 flash('Registration successful! You can now log in.', 'success')
                 return redirect(url_for('web_login'))
             except Exception as e:
-                # Roll back the transaction on any error
                 db.session.rollback()
                 logger.error(f"Error during registration: {str(e)}")
                 flash('An error occurred during registration. Please try again.', 'danger')
-            finally:
-                # Make sure we end with a clean session
-                db.session.close()
             
         return render_template('register.html', form=form)
         
@@ -257,102 +197,73 @@ def setup_web_routes(app):
         page = request.args.get('page', 1, type=int)
         per_page = 10
         form = UploadForm()
-        logger.info(f"Document page accessed: method={request.method}, form_valid={form.validate_on_submit() if request.method == 'POST' else False}")
         
-        if request.method == 'POST':
-            # Check CSRF errors explicitly
-            if not form.validate_on_submit():
-                csrf_errors = form.errors.get('csrf_token', [])
-                if csrf_errors:
-                    logger.error(f"CSRF validation failed: {csrf_errors}")
-                    flash('Security token expired. Please try again.', 'danger')
-                    return redirect(url_for('documents'))
-                
-                logger.error(f"Form validation errors: {form.errors}")
-                flash('Form validation failed. Please check your inputs.', 'danger')
-                return redirect(url_for('documents'))
-                
-            # Form validated successfully, proceed with file upload
+        if request.method == 'POST' and form.validate_on_submit():
             file = form.file.data
             
             if file and is_allowed_file(file.filename):
-                # Make sure we have a clean session before database operations
-                db.session.close()
+                filename = secure_filename(file.filename)
+                timestamp = int(datetime.now().timestamp())
+                unique_filename = f"{timestamp}_{filename}"
+                upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                file_path = os.path.join(upload_folder, unique_filename)
                 
+                # Ensure upload directory exists
+                os.makedirs(upload_folder, exist_ok=True)
+                
+                # Save the file
+                file.save(file_path)
+                
+                # Create new document record
+                new_document = Document(
+                    filename=unique_filename,
+                    original_filename=filename,
+                    file_path=file_path,
+                    file_size=os.path.getsize(file_path),
+                    content_type=file.content_type,
+                    user_id=current_user.id
+                )
+                
+                db.session.add(new_document)
+                db.session.commit()
+                
+                # Process document in background or queue
                 try:
-                    filename = secure_filename(file.filename)
-                    timestamp = int(datetime.now().timestamp())
-                    unique_filename = f"{timestamp}_{filename}"
-                    upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                    file_path = os.path.join(upload_folder, unique_filename)
+                    from services.text_analysis import analyze_document
+                    from services.document_parser import document_parser
                     
-                    # Ensure upload directory exists
-                    os.makedirs(upload_folder, exist_ok=True)
+                    # Parse document text
+                    document_text = document_parser.parse_document(file_path)
                     
-                    # Save the file
-                    file.save(file_path)
+                    # Analyze the document content
+                    analysis_results = analyze_document(document_text, new_document.id)
                     
-                    # Create new document record
-                    new_document = Document(
-                        filename=unique_filename,
-                        original_filename=filename,
-                        file_path=file_path,
-                        file_size=os.path.getsize(file_path),
-                        content_type=file.content_type,
-                        user_id=current_user.id
-                    )
+                    # Extract statutes separately using OpenAI if available
+                    try:
+                        from services.openai_document import analyze_document_for_statutes
+                        statutes = analyze_document_for_statutes(document_text)
+                        if statutes and len(statutes) > 0:
+                            logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
+                            from services.text_analysis import store_statutes
+                            store_statutes(statutes, new_document.id)
+                    except Exception as e:
+                        logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
                     
-                    db.session.add(new_document)
+                    # Mark document as processed
+                    new_document.processed = True
                     db.session.commit()
                     
-                    # Process document in background or queue
-                    try:
-                        from services.text_analysis import analyze_document
-                        from services.document_parser import document_parser
-                        
-                        # Parse document text
-                        document_text = document_parser.parse_document(file_path)
-                        
-                        # Analyze the document content
-                        analysis_results = analyze_document(document_text, new_document.id)
-                        
-                        # Extract statutes separately using OpenAI if available
-                        try:
-                            from services.openai_document import analyze_document_for_statutes
-                            statutes = analyze_document_for_statutes(document_text)
-                            if statutes and len(statutes) > 0:
-                                logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
-                                from services.text_analysis import store_statutes
-                                store_statutes(statutes, new_document.id)
-                        except Exception as e:
-                            logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
-                        
-                        # Mark document as processed
-                        new_document.processed = True
-                        db.session.commit()
-                        
-                        flash('Document uploaded and processed successfully', 'success')
-                    except Exception as e:
-                        logger.error(f"Error processing document: {str(e)}")
-                        new_document.processing_error = str(e)
-                        db.session.commit()
-                        flash('Document uploaded but could not be processed', 'warning')
-                    
-                    return redirect(url_for('documents'))
+                    flash('Document uploaded and processed successfully', 'success')
                 except Exception as e:
-                    logger.error(f"Document upload error: {str(e)}")
-                    db.session.rollback()
-                    flash('An error occurred during document upload. Please try again.', 'danger')
-                    return redirect(url_for('documents'))
-                finally:
-                    # Always ensure we have a clean session at the end
-                    db.session.close()
+                    logger.error(f"Error processing document: {str(e)}")
+                    new_document.processing_error = str(e)
+                    db.session.commit()
+                    flash('Document uploaded but could not be processed', 'warning')
+                
+                return redirect(url_for('documents'))
             else:
                 flash('Invalid file type. Allowed types: PDF, DOCX, DOC, TXT, RTF', 'danger')
                 return redirect(request.url)
-        
-        # Start with a clean session for listing documents
-        db.session.close()
         
         documents = Document.query.filter_by(user_id=current_user.id).order_by(
             Document.uploaded_at.desc()
