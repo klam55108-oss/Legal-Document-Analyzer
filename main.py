@@ -20,11 +20,13 @@ from app import app
 
 # Add a PostgreSQL-specific listener to handle aborted transactions
 @event.listens_for(Engine, "handle_error")
-def handle_engine_error(context, exc, *args, **kwargs):
+def handle_engine_error(context):
     """Listen for database errors and log them."""
+    exc = context.original_exception
     if isinstance(exc, OperationalError):
         logger.error(f"Database operational error: {str(exc)}")
-    logger.error(f"Database error: {str(exc)}")
+    else:
+        logger.error(f"Database error: {str(exc)}")
     
     # Try to recover from the error by forcing a connection reset
     try:
