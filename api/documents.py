@@ -4,11 +4,18 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from api.auth import auth, require_api_key
-from models import Document
+from models import Document, Statute
 from services.document_parser import document_parser, is_allowed_file
-from services.text_analysis import analyze_document
+from services.text_analysis import analyze_document, store_statutes
 from services.statute_validator import validate_statutes
 import logging
+
+# Import for improved statute extraction
+try:
+    from services.openai_document import analyze_document_for_statutes
+    HAVE_OPENAI_DOCUMENT = True
+except ImportError:
+    HAVE_OPENAI_DOCUMENT = False
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +107,22 @@ class DocumentListResource(Resource):
             # Analyze document to extract statutes and other legal references
             analysis_results = analyze_document(text_content, document.id)
             
+            # Use OpenAI for advanced statute extraction if available
+            if HAVE_OPENAI_DOCUMENT:
+                try:
+                    statutes_from_openai = analyze_document_for_statutes(text_content)
+                    if statutes_from_openai and len(statutes_from_openai) > 0:
+                        logger.info(f"Found {len(statutes_from_openai)} statutes using direct OpenAI analysis")
+                        store_statutes(statutes_from_openai, document.id)
+                except Exception as e:
+                    logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+            
+            # Get all statutes for validation
+            from models import Statute
+            all_statutes = Statute.query.filter_by(document_id=document.id).all()
+            
             # Validate the statutes against law databases
-            statutes = validate_statutes(analysis_results.get('statutes', []), document.id)
+            statutes = validate_statutes([{"reference": s.reference, "context": s.content} for s in all_statutes], document.id)
             
             # Mark the document as processed
             document.processed = True
@@ -243,8 +264,22 @@ def setup_document_routes(app, api):
             # Analyze document to extract statutes and other legal references
             analysis_results = analyze_document(text_content, document.id)
             
+            # Use OpenAI for advanced statute extraction if available
+            if HAVE_OPENAI_DOCUMENT:
+                try:
+                    statutes_from_openai = analyze_document_for_statutes(text_content)
+                    if statutes_from_openai and len(statutes_from_openai) > 0:
+                        logger.info(f"Found {len(statutes_from_openai)} statutes using direct OpenAI analysis")
+                        store_statutes(statutes_from_openai, document.id)
+                except Exception as e:
+                    logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+            
+            # Get all statutes for validation
+            from models import Statute
+            all_statutes = Statute.query.filter_by(document_id=document.id).all()
+            
             # Validate the statutes against law databases
-            statutes = validate_statutes(analysis_results.get('statutes', []), document.id)
+            statutes = validate_statutes([{"reference": s.reference, "context": s.content} for s in all_statutes], document.id)
             
             # Mark the document as processed
             document.processed = True

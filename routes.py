@@ -158,6 +158,17 @@ def setup_web_routes(app):
                     # Analyze the document content
                     analysis_results = analyze_document(document_text, new_document.id)
                     
+                    # Extract statutes separately using OpenAI if available
+                    try:
+                        from services.openai_document import analyze_document_for_statutes
+                        statutes = analyze_document_for_statutes(document_text)
+                        if statutes and len(statutes) > 0:
+                            logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
+                            from services.text_analysis import store_statutes
+                            store_statutes(statutes, new_document.id)
+                    except Exception as e:
+                        logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+                    
                     # Mark document as processed
                     new_document.processed = True
                     db.session.commit()
