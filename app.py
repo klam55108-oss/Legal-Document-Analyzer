@@ -52,14 +52,16 @@ def create_app():
     # Configure database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_timeout": 30,
+        "pool_recycle": 300,  # Recycle connections after 5 minutes
+        "pool_pre_ping": True,  # Check connection validity before using
+        "pool_size": 10,  # Allow 10 concurrent connections
+        "max_overflow": 20,  # Allow 20 additional connections during load peaks
+        "pool_timeout": 30,  # Wait 30 seconds for a connection
         "pool_reset_on_return": "rollback",  # Always rollback incomplete transactions on connection return
+        "isolation_level": "AUTOCOMMIT",  # Use PostgreSQL autocommit mode to avoid transaction issues
         "connect_args": {
-            "options": "-c statement_timeout=15000"  # 15 second query timeout
+            "options": "-c statement_timeout=15000",  # 15 second query timeout
+            "application_name": "LegalDataInsights",  # Identify app in Postgres logs
         }
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
