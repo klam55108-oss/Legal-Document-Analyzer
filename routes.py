@@ -721,17 +721,24 @@ def setup_web_routes(app):
     @login_required
     def onboarding_wizard():
         """Entry point for the user onboarding wizard."""
-        # Initialize onboarding progress if it doesn't exist
-        progress = OnboardingService.get_progress(current_user)
-            
-        # If user has completed onboarding, redirect to dashboard
-        if progress and progress.onboarding_completed:
-            flash('You have already completed the onboarding process.', 'info')
+        try:
+            # Initialize onboarding progress if it doesn't exist
+            progress = OnboardingService.get_progress(current_user)
+                
+            # If user has completed onboarding, redirect to dashboard
+            if progress and progress.onboarding_completed:
+                flash('You have already completed the onboarding process.', 'info')
+                return redirect(url_for('dashboard'))
+                
+            # Render the appropriate step template based on current progress
+            step = progress.current_step if progress else 1
+            return render_template(f'onboarding/step{step}.html', progress=progress)
+        except Exception as e:
+            # Something went wrong, log the error and show a generic message
+            logger.error(f"Error accessing onboarding wizard: {str(e)}")
+            db.session.rollback()  # Ensure any failed transaction is rolled back
+            flash('We encountered an issue with the onboarding process. Please try again.', 'danger')
             return redirect(url_for('dashboard'))
-            
-        # Render the appropriate step template based on current progress
-        step = progress.current_step if progress else 1
-        return render_template(f'onboarding/step{step}.html', progress=progress)
         
     @app.route('/onboarding/next/<int:current_step>', methods=['POST'])
     @login_required
@@ -743,16 +750,16 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
-            
-        # Get current progress
-        progress = OnboardingService.get_progress(current_user)
-            
-        # Validate the step
-        if progress.current_step != current_step:
-            flash('Invalid step transition.', 'warning')
-            return redirect(url_for('onboarding_wizard'))
         
         try:
+            # Get current progress - this method now has built-in transaction handling
+            progress = OnboardingService.get_progress(current_user)
+                
+            # Validate the step
+            if progress.current_step != current_step:
+                flash('Invalid step transition.', 'warning')
+                return redirect(url_for('onboarding_wizard'))
+            
             # Mark this step as completed and move to the next
             OnboardingService.complete_step(current_user, current_step)
             
@@ -765,6 +772,7 @@ def setup_web_routes(app):
             return redirect(url_for('onboarding_wizard'))
         except Exception as e:
             logger.error(f"Error in onboarding process: {str(e)}")
+            db.session.rollback()  # Ensure any failed transaction is rolled back
             flash('An error occurred during the onboarding process. Please try again.', 'danger')
             return redirect(url_for('onboarding_wizard'))
         
@@ -778,10 +786,16 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
-            
-        OnboardingService.skip_onboarding(current_user)
-        flash('Onboarding has been skipped. You can access it again from your profile settings if needed.', 'info')
-        return redirect(url_for('dashboard'))
+        
+        try:    
+            OnboardingService.skip_onboarding(current_user)
+            flash('Onboarding has been skipped. You can access it again from your profile settings if needed.', 'info')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            logger.error(f"Error skipping onboarding: {str(e)}")
+            db.session.rollback()  # Ensure any failed transaction is rolled back
+            flash('An error occurred when skipping the onboarding process. Please try again.', 'danger')
+            return redirect(url_for('onboarding_wizard'))
         
     @app.route('/onboarding/restart', methods=['POST'])
     @login_required
@@ -793,8 +807,14 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
-            
-        # Initialize new onboarding progress
-        OnboardingService.initialize_onboarding(current_user)
-        flash('Onboarding process has been restarted.', 'info')
-        return redirect(url_for('onboarding_wizard'))
+        
+        try:    
+            # Initialize new onboarding progress
+            OnboardingService.initialize_onboarding(current_user)
+            flash('Onboarding process has been restarted.', 'info')
+            return redirect(url_for('onboarding_wizard'))
+        except Exception as e:
+            logger.error(f"Error restarting onboarding: {str(e)}")
+            db.session.rollback()  # Ensure any failed transaction is rolled back
+            flash('An error occurred when restarting the onboarding process. Please try again.', 'danger')
+            return redirect(url_for('dashboard'))

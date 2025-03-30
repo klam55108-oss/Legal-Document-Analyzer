@@ -7,6 +7,7 @@ import shutil
 from flask import current_app, flash
 from models import OnboardingProgress, Document, db
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -208,9 +209,26 @@ class OnboardingService:
         Returns:
             OnboardingProgress: The user's onboarding progress object
         """
-        progress = OnboardingProgress.query.filter_by(user_id=user.id).first()
-        
-        if not progress:
-            progress = OnboardingService.initialize_onboarding(user)
+        try:
+            # Check for any pending transactions and roll them back before proceeding
+            try:
+                # Execute a simple query to test the connection
+                db.session.execute(text("SELECT 1"))
+            except SQLAlchemyError:
+                # If there's an error, rollback the transaction
+                logger.warning("Active transaction detected, rolling back before proceeding")
+                db.session.rollback()
             
-        return progress
+            # Now query for the progress
+            progress = OnboardingProgress.query.filter_by(user_id=user.id).first()
+            
+            if not progress:
+                progress = OnboardingService.initialize_onboarding(user)
+                
+            return progress
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            logger.error(f"Error getting onboarding progress: {str(e)}")
+            # Create a new progress object without saving it to the database
+            # This allows the application to continue working even if DB access fails
+            return OnboardingProgress(user_id=user.id, current_step=1)
