@@ -111,6 +111,10 @@ def create_app():
         # Initialize ML service
         from services.ml_service import ml_service
         
+        # Initialize Email service
+        from services.email_service import email_service
+        email_service.app = app
+        
         logger.info("Application initialized successfully")
     
     return app

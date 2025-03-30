@@ -46,3 +46,13 @@ class KnowledgeSearchForm(FlaskForm):
     query = StringField('Search Knowledge Base', validators=[Length(max=100)])
     tags = SelectMultipleField('Filter by Tags')
     submit = SubmitField('Search')
+    
+class RequestPasswordResetForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')
+    
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[DataRequired(), Length(min=8)])
+    password_confirm = PasswordField('Confirm New Password', 
+                                  validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Reset Password')

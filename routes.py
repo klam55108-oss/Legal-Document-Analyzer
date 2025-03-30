@@ -7,7 +7,8 @@ from services.document_parser import is_allowed_file
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
-from forms import LoginForm, RegistrationForm
+from forms import LoginForm, RegistrationForm, RequestPasswordResetForm, ResetPasswordForm
+from services.email_service import email_service
 from datetime import datetime
 from services.brief_generator import generate_brief as brief_generator_service
 from services.knowledge_service import (
@@ -75,6 +76,58 @@ def setup_web_routes(app):
         logout_user()
         flash('You have been logged out', 'info')
         return redirect(url_for('index'))
+        
+    @app.route('/reset_password_request', methods=['GET', 'POST'])
+    def request_password_reset():
+        """Handle password reset request."""
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+            
+        form = RequestPasswordResetForm()
+        if form.validate_on_submit():
+            user = User.query.filter_by(email=form.email.data).first()
+            if user:
+                token = user.generate_reset_token()
+                db.session.commit()
+                
+                # Send password reset email
+                email_sent = email_service.send_password_reset_email(user, token)
+                
+                if email_sent:
+                    flash('Check your email for instructions to reset your password.', 'info')
+                else:
+                    flash('Could not send reset email. Please try again later or contact support.', 'warning')
+            else:
+                # For security reasons, don't reveal that the email doesn't exist
+                flash('Check your email for instructions to reset your password.', 'info')
+                
+            return redirect(url_for('web_login'))
+            
+        return render_template('reset_password_request.html', form=form)
+        
+    @app.route('/reset_password/<token>', methods=['GET', 'POST'])
+    def reset_password(token):
+        """Handle password reset with token."""
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+            
+        # Find user with this token
+        user = User.query.filter_by(reset_token=token).first()
+        
+        # Check if token exists and is valid
+        if not user or not user.verify_reset_token(token):
+            flash('Invalid or expired reset link.', 'danger')
+            return redirect(url_for('request_password_reset'))
+            
+        form = ResetPasswordForm()
+        if form.validate_on_submit():
+            user.set_password(form.password.data)
+            user.clear_reset_token()
+            db.session.commit()
+            flash('Your password has been reset successfully.', 'success')
+            return redirect(url_for('web_login'))
+            
+        return render_template('reset_password.html', form=form)
     
     @app.route('/dashboard')
     @login_required
