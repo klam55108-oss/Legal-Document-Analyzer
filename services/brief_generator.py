@@ -138,7 +138,8 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             content, summary = generate_brief_with_openai(
                 document_text=document_text,
                 title=title.replace('Brief: ', ''),
-                focus_areas=focus_areas
+                focus_areas=focus_areas,
+                document_id=document.id
             )
             
             logger.info(f"OpenAI brief generation successful for document {document.id}")
