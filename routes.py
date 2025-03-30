@@ -294,6 +294,12 @@ def setup_web_routes(app):
         from flask_wtf import FlaskForm
         from wtforms import StringField, TextAreaField
         
+        # Create a form for CSRF validation
+        form = FlaskForm()
+        if not form.validate_on_submit():
+            flash('CSRF token missing or invalid', 'danger')
+            return redirect(url_for('document_detail', document_id=document_id))
+        
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         
         # Ensure document is processed
