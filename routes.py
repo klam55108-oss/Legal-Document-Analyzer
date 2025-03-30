@@ -257,73 +257,102 @@ def setup_web_routes(app):
         page = request.args.get('page', 1, type=int)
         per_page = 10
         form = UploadForm()
+        logger.info(f"Document page accessed: method={request.method}, form_valid={form.validate_on_submit() if request.method == 'POST' else False}")
         
-        if request.method == 'POST' and form.validate_on_submit():
+        if request.method == 'POST':
+            # Check CSRF errors explicitly
+            if not form.validate_on_submit():
+                csrf_errors = form.errors.get('csrf_token', [])
+                if csrf_errors:
+                    logger.error(f"CSRF validation failed: {csrf_errors}")
+                    flash('Security token expired. Please try again.', 'danger')
+                    return redirect(url_for('documents'))
+                
+                logger.error(f"Form validation errors: {form.errors}")
+                flash('Form validation failed. Please check your inputs.', 'danger')
+                return redirect(url_for('documents'))
+                
+            # Form validated successfully, proceed with file upload
             file = form.file.data
             
             if file and is_allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                timestamp = int(datetime.now().timestamp())
-                unique_filename = f"{timestamp}_{filename}"
-                upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                file_path = os.path.join(upload_folder, unique_filename)
+                # Make sure we have a clean session before database operations
+                db.session.close()
                 
-                # Ensure upload directory exists
-                os.makedirs(upload_folder, exist_ok=True)
-                
-                # Save the file
-                file.save(file_path)
-                
-                # Create new document record
-                new_document = Document(
-                    filename=unique_filename,
-                    original_filename=filename,
-                    file_path=file_path,
-                    file_size=os.path.getsize(file_path),
-                    content_type=file.content_type,
-                    user_id=current_user.id
-                )
-                
-                db.session.add(new_document)
-                db.session.commit()
-                
-                # Process document in background or queue
                 try:
-                    from services.text_analysis import analyze_document
-                    from services.document_parser import document_parser
+                    filename = secure_filename(file.filename)
+                    timestamp = int(datetime.now().timestamp())
+                    unique_filename = f"{timestamp}_{filename}"
+                    upload_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                    file_path = os.path.join(upload_folder, unique_filename)
                     
-                    # Parse document text
-                    document_text = document_parser.parse_document(file_path)
+                    # Ensure upload directory exists
+                    os.makedirs(upload_folder, exist_ok=True)
                     
-                    # Analyze the document content
-                    analysis_results = analyze_document(document_text, new_document.id)
+                    # Save the file
+                    file.save(file_path)
                     
-                    # Extract statutes separately using OpenAI if available
+                    # Create new document record
+                    new_document = Document(
+                        filename=unique_filename,
+                        original_filename=filename,
+                        file_path=file_path,
+                        file_size=os.path.getsize(file_path),
+                        content_type=file.content_type,
+                        user_id=current_user.id
+                    )
+                    
+                    db.session.add(new_document)
+                    db.session.commit()
+                    
+                    # Process document in background or queue
                     try:
-                        from services.openai_document import analyze_document_for_statutes
-                        statutes = analyze_document_for_statutes(document_text)
-                        if statutes and len(statutes) > 0:
-                            logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
-                            from services.text_analysis import store_statutes
-                            store_statutes(statutes, new_document.id)
+                        from services.text_analysis import analyze_document
+                        from services.document_parser import document_parser
+                        
+                        # Parse document text
+                        document_text = document_parser.parse_document(file_path)
+                        
+                        # Analyze the document content
+                        analysis_results = analyze_document(document_text, new_document.id)
+                        
+                        # Extract statutes separately using OpenAI if available
+                        try:
+                            from services.openai_document import analyze_document_for_statutes
+                            statutes = analyze_document_for_statutes(document_text)
+                            if statutes and len(statutes) > 0:
+                                logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
+                                from services.text_analysis import store_statutes
+                                store_statutes(statutes, new_document.id)
+                        except Exception as e:
+                            logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+                        
+                        # Mark document as processed
+                        new_document.processed = True
+                        db.session.commit()
+                        
+                        flash('Document uploaded and processed successfully', 'success')
                     except Exception as e:
-                        logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+                        logger.error(f"Error processing document: {str(e)}")
+                        new_document.processing_error = str(e)
+                        db.session.commit()
+                        flash('Document uploaded but could not be processed', 'warning')
                     
-                    # Mark document as processed
-                    new_document.processed = True
-                    db.session.commit()
-                    
-                    flash('Document uploaded and processed successfully', 'success')
+                    return redirect(url_for('documents'))
                 except Exception as e:
-                    logger.error(f"Error processing document: {str(e)}")
-                    new_document.processing_error = str(e)
-                    db.session.commit()
-                    flash('Document uploaded but could not be processed', 'warning')
-                
-                return redirect(url_for('documents'))
+                    logger.error(f"Document upload error: {str(e)}")
+                    db.session.rollback()
+                    flash('An error occurred during document upload. Please try again.', 'danger')
+                    return redirect(url_for('documents'))
+                finally:
+                    # Always ensure we have a clean session at the end
+                    db.session.close()
             else:
                 flash('Invalid file type. Allowed types: PDF, DOCX, DOC, TXT, RTF', 'danger')
                 return redirect(request.url)
+        
+        # Start with a clean session for listing documents
+        db.session.close()
         
         documents = Document.query.filter_by(user_id=current_user.id).order_by(
             Document.uploaded_at.desc()

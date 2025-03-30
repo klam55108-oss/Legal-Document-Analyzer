@@ -5,12 +5,12 @@ import datetime
 import os
 import logging
 import traceback
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_restful import Api
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_session import Session
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
@@ -48,6 +48,12 @@ def create_app():
     app.config['WTF_CSRF_TIME_LIMIT'] = None  # Remove time limit on CSRF tokens
     app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow CSRF to work without HTTPS in development
     app.config['WTF_CSRF_ENABLED'] = True
+    
+    # Define CSRF error handler to provide clearer errors
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        logger.error(f"CSRF error: {e.description}")
+        return render_template('csrf_error.html', reason=e.description), 400
     
     # Configure database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
