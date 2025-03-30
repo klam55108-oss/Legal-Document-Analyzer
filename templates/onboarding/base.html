@@ -1,0 +1,179 @@
+{% extends "layout.html" %}
+
+{% block title %}Onboarding - {{ step_title }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+<style>
+  .onboarding-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background-color: var(--bs-dark);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  }
+  
+  .onboarding-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  
+  .onboarding-steps {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    position: relative;
+  }
+  
+  .onboarding-steps::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--bs-gray-700);
+    z-index: 1;
+    transform: translateY(-50%);
+  }
+  
+  .step {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bs-gray-700);
+    color: var(--bs-light);
+    font-weight: bold;
+    position: relative;
+    z-index: 2;
+  }
+  
+  .step.active {
+    background-color: var(--bs-primary);
+    color: var(--bs-white);
+  }
+  
+  .step.completed {
+    background-color: var(--bs-success);
+    color: var(--bs-white);
+  }
+  
+  .onboarding-content {
+    margin-bottom: 2rem;
+  }
+  
+  .onboarding-footer {
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .step-label {
+    text-align: center;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    color: var(--bs-gray-500);
+  }
+  
+  .step-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+  }
+  
+  .step-container.active .step-label {
+    color: var(--bs-primary);
+    font-weight: bold;
+  }
+  
+  .step-container.completed .step-label {
+    color: var(--bs-success);
+    font-weight: bold;
+  }
+  
+  .onboarding-animation {
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .onboarding-animation:hover {
+    transform: scale(1.05);
+  }
+  
+  .feature-icon {
+    width: 4rem;
+    height: 4rem;
+    border-radius: 0.75rem;
+    background-color: var(--bs-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  
+  .feature-icon svg {
+    width: 2rem;
+    height: 2rem;
+    color: var(--bs-white);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="onboarding-container">
+  <div class="onboarding-header">
+    <h1>Welcome to LegalDataInsights</h1>
+    <p class="lead">Let's get you started with a quick tutorial</p>
+  </div>
+  
+  <div class="onboarding-steps">
+    <div class="step-container {% if progress.current_step >= 1 %}active{% endif %} {% if progress.welcome_completed %}completed{% endif %}">
+      <div class="step {% if progress.current_step >= 1 %}active{% endif %} {% if progress.welcome_completed %}completed{% endif %}">1</div>
+      <div class="step-label">Welcome</div>
+    </div>
+    <div class="step-container {% if progress.current_step >= 2 %}active{% endif %} {% if progress.document_upload_completed %}completed{% endif %}">
+      <div class="step {% if progress.current_step >= 2 %}active{% endif %} {% if progress.document_upload_completed %}completed{% endif %}">2</div>
+      <div class="step-label">Document Upload</div>
+    </div>
+    <div class="step-container {% if progress.current_step >= 3 %}active{% endif %} {% if progress.document_analysis_completed %}completed{% endif %}">
+      <div class="step {% if progress.current_step >= 3 %}active{% endif %} {% if progress.document_analysis_completed %}completed{% endif %}">3</div>
+      <div class="step-label">Document Analysis</div>
+    </div>
+    <div class="step-container {% if progress.current_step >= 4 %}active{% endif %} {% if progress.brief_generation_completed %}completed{% endif %}">
+      <div class="step {% if progress.current_step >= 4 %}active{% endif %} {% if progress.brief_generation_completed %}completed{% endif %}">4</div>
+      <div class="step-label">Brief Generation</div>
+    </div>
+    <div class="step-container {% if progress.current_step >= 5 %}active{% endif %} {% if progress.knowledge_creation_completed %}completed{% endif %}">
+      <div class="step {% if progress.current_step >= 5 %}active{% endif %} {% if progress.knowledge_creation_completed %}completed{% endif %}">5</div>
+      <div class="step-label">Knowledge Vault</div>
+    </div>
+  </div>
+  
+  <div class="onboarding-content">
+    {% block step_content %}{% endblock %}
+  </div>
+  
+  <div class="onboarding-footer">
+    <div>
+      <form action="{{ url_for('onboarding_skip') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary">Skip Tutorial</button>
+      </form>
+    </div>
+    <div>
+      {% if progress.current_step > 1 %}
+      <form action="{{ url_for('onboarding_restart') }}" method="post" class="d-inline-block me-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-danger">Start Over</button>
+      </form>
+      {% endif %}
+      
+      {% block step_actions %}{% endblock %}
+    </div>
+  </div>
+</div>
+{% endblock %}
