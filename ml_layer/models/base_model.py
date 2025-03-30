@@ -5,6 +5,7 @@ import os
 import logging
 from abc import ABC, abstractmethod
 import joblib
+from typing import Dict, Any, Optional
 
 from ml_layer.config import MLConfig
 
@@ -47,7 +48,7 @@ class Model(ABC):
             return False
             
     @abstractmethod
-    def train(self, X, y, **kwargs):
+    def train(self, X, y=None, **kwargs) -> Dict[str, Any]:
         """
         Train the model on the provided data.
         
@@ -57,12 +58,12 @@ class Model(ABC):
             **kwargs: Additional training parameters
             
         Returns:
-            Results of the training process
+            Results of the training process as a dictionary
         """
         pass
         
     @abstractmethod
-    def predict(self, X, **kwargs):
+    def predict(self, X, **kwargs) -> Dict[str, Any]:
         """
         Make predictions using the trained model.
         
@@ -71,12 +72,12 @@ class Model(ABC):
             **kwargs: Additional prediction parameters
             
         Returns:
-            The model's predictions
+            The model's predictions as a dictionary
         """
         pass
         
     @abstractmethod
-    def evaluate(self, X, y, **kwargs):
+    def evaluate(self, X, y=None, **kwargs) -> Dict[str, Any]:
         """
         Evaluate the model's performance.
         
@@ -86,7 +87,7 @@ class Model(ABC):
             **kwargs: Additional evaluation parameters
             
         Returns:
-            Evaluation metrics
+            Evaluation metrics as a dictionary
         """
         pass
         
