@@ -1,0 +1,410 @@
+{% extends 'layout.html' %}
+
+{% block title %}Cloud Integrations{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Cloud Integrations</h1>
+    
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Available Integrations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Google Drive Integration -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">Google Drive</h5>
+                                    <p class="card-text">Connect to Google Drive to store and retrieve your legal documents.</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#googleDriveModal">
+                                            Connect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dropbox Integration -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">Dropbox</h5>
+                                    <p class="card-text">Connect to Dropbox to store and retrieve your legal documents.</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#dropboxModal">
+                                            Connect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Box Integration -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">Box</h5>
+                                    <p class="card-text">Connect to Box to store and retrieve your legal documents.</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#boxModal">
+                                            Connect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- OneDrive/Microsoft 365 Integration -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">Microsoft 365</h5>
+                                    <p class="card-text">Connect to OneDrive and Microsoft 365 to store and retrieve your legal documents.</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#msgraphModal">
+                                            Connect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Airtable Integration -->
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">Airtable</h5>
+                                    <p class="card-text">Connect to Airtable to manage your case data and collaborate with your team.</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#airtableModal">
+                                            Connect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Connected Services</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Service</th>
+                                    <th>Status</th>
+                                    <th>Connected At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- This would be populated dynamically based on user's connected services -->
+                                <tr>
+                                    <td colspan="4" class="text-center">No services connected yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Google Drive Connection Modal -->
+<div class="modal fade" id="googleDriveModal" tabindex="-1" aria-labelledby="googleDriveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="googleDriveModalLabel">Connect to Google Drive</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="googleDriveForm">
+                    <div class="mb-3">
+                        <label for="googleDriveCredentialsFile" class="form-label">Credentials File</label>
+                        <input type="file" class="form-control" id="googleDriveCredentialsFile" accept=".json">
+                        <div class="form-text">Upload your Google Drive API credentials JSON file.</div>
+                    </div>
+                    <div class="mb-3">
+                        <p>You need to:</p>
+                        <ol>
+                            <li>Create a project in the <a href="https://console.developers.google.com/" target="_blank">Google Developer Console</a></li>
+                            <li>Enable the Google Drive API</li>
+                            <li>Create OAuth 2.0 credentials</li>
+                            <li>Download the credentials JSON file</li>
+                        </ol>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="connectGoogleDrive">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dropbox Connection Modal -->
+<div class="modal fade" id="dropboxModal" tabindex="-1" aria-labelledby="dropboxModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="dropboxModalLabel">Connect to Dropbox</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dropboxForm">
+                    <div class="mb-3">
+                        <label for="dropboxAppKey" class="form-label">App Key</label>
+                        <input type="text" class="form-control" id="dropboxAppKey">
+                    </div>
+                    <div class="mb-3">
+                        <label for="dropboxAppSecret" class="form-label">App Secret</label>
+                        <input type="password" class="form-control" id="dropboxAppSecret">
+                    </div>
+                    <div class="mb-3">
+                        <p>You need to:</p>
+                        <ol>
+                            <li>Create an app in the <a href="https://www.dropbox.com/developers/apps" target="_blank">Dropbox Developer Console</a></li>
+                            <li>Get your App Key and App Secret</li>
+                        </ol>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="connectDropbox">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Box Connection Modal -->
+<div class="modal fade" id="boxModal" tabindex="-1" aria-labelledby="boxModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="boxModalLabel">Connect to Box</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="boxForm">
+                    <div class="mb-3">
+                        <label for="boxClientId" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="boxClientId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="boxClientSecret" class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" id="boxClientSecret">
+                    </div>
+                    <div class="mb-3">
+                        <p>You need to:</p>
+                        <ol>
+                            <li>Create an app in the <a href="https://developer.box.com/console" target="_blank">Box Developer Console</a></li>
+                            <li>Get your Client ID and Client Secret</li>
+                        </ol>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="connectBox">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Microsoft 365 Connection Modal -->
+<div class="modal fade" id="msgraphModal" tabindex="-1" aria-labelledby="msgraphModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="msgraphModalLabel">Connect to Microsoft 365</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="msgraphForm">
+                    <div class="mb-3">
+                        <label for="msClientId" class="form-label">Client ID</label>
+                        <input type="text" class="form-control" id="msClientId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="msTenantId" class="form-label">Tenant ID</label>
+                        <input type="text" class="form-control" id="msTenantId">
+                    </div>
+                    <div class="mb-3">
+                        <label for="msClientSecret" class="form-label">Client Secret</label>
+                        <input type="password" class="form-control" id="msClientSecret">
+                    </div>
+                    <div class="mb-3">
+                        <p>You need to:</p>
+                        <ol>
+                            <li>Register an app in the <a href="https://portal.azure.com/" target="_blank">Azure Portal</a></li>
+                            <li>Get your Client ID, Tenant ID, and Client Secret</li>
+                        </ol>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="connectMSGraph">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Airtable Connection Modal -->
+<div class="modal fade" id="airtableModal" tabindex="-1" aria-labelledby="airtableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="airtableModalLabel">Connect to Airtable</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="airtableForm">
+                    <div class="mb-3">
+                        <label for="airtableApiKey" class="form-label">API Key</label>
+                        <input type="text" class="form-control" id="airtableApiKey">
+                    </div>
+                    <div class="mb-3">
+                        <label for="airtableBaseId" class="form-label">Base ID</label>
+                        <input type="text" class="form-control" id="airtableBaseId">
+                    </div>
+                    <div class="mb-3">
+                        <p>You need to:</p>
+                        <ol>
+                            <li>Generate an API key in your <a href="https://airtable.com/account" target="_blank">Airtable account</a></li>
+                            <li>Get your Base ID from the API documentation of your base</li>
+                        </ol>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="connectAirtable">Connect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Google Drive Connection
+        document.getElementById('connectGoogleDrive').addEventListener('click', function() {
+            const credentialsFile = document.getElementById('googleDriveCredentialsFile').files[0];
+            if (!credentialsFile) {
+                alert('Please select a credentials file');
+                return;
+            }
+            
+            // Here you would upload the credentials file to the server
+            // and initiate the OAuth2 flow for Google Drive
+            // This is just a placeholder
+            alert('Google Drive connection would be initiated here');
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('googleDriveModal'));
+            modal.hide();
+        });
+        
+        // Dropbox Connection
+        document.getElementById('connectDropbox').addEventListener('click', function() {
+            const appKey = document.getElementById('dropboxAppKey').value;
+            const appSecret = document.getElementById('dropboxAppSecret').value;
+            
+            if (!appKey || !appSecret) {
+                alert('Please enter both App Key and App Secret');
+                return;
+            }
+            
+            // Here you would send the app key and app secret to the server
+            // and initiate the OAuth2 flow for Dropbox
+            // This is just a placeholder
+            alert('Dropbox connection would be initiated here');
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('dropboxModal'));
+            modal.hide();
+        });
+        
+        // Box Connection
+        document.getElementById('connectBox').addEventListener('click', function() {
+            const clientId = document.getElementById('boxClientId').value;
+            const clientSecret = document.getElementById('boxClientSecret').value;
+            
+            if (!clientId || !clientSecret) {
+                alert('Please enter both Client ID and Client Secret');
+                return;
+            }
+            
+            // Here you would send the client ID and client secret to the server
+            // and initiate the OAuth2 flow for Box
+            // This is just a placeholder
+            alert('Box connection would be initiated here');
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('boxModal'));
+            modal.hide();
+        });
+        
+        // Microsoft 365 Connection
+        document.getElementById('connectMSGraph').addEventListener('click', function() {
+            const clientId = document.getElementById('msClientId').value;
+            const tenantId = document.getElementById('msTenantId').value;
+            const clientSecret = document.getElementById('msClientSecret').value;
+            
+            if (!clientId || !tenantId || !clientSecret) {
+                alert('Please enter Client ID, Tenant ID, and Client Secret');
+                return;
+            }
+            
+            // Here you would send the client ID, tenant ID, and client secret to the server
+            // and initiate the OAuth2 flow for Microsoft Graph
+            // This is just a placeholder
+            alert('Microsoft 365 connection would be initiated here');
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('msgraphModal'));
+            modal.hide();
+        });
+        
+        // Airtable Connection
+        document.getElementById('connectAirtable').addEventListener('click', function() {
+            const apiKey = document.getElementById('airtableApiKey').value;
+            const baseId = document.getElementById('airtableBaseId').value;
+            
+            if (!apiKey || !baseId) {
+                alert('Please enter both API Key and Base ID');
+                return;
+            }
+            
+            // Here you would send the API key and base ID to the server
+            // This is just a placeholder
+            alert('Airtable connection would be initiated here');
+            
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('airtableModal'));
+            modal.hide();
+        });
+    });
+</script>
+{% endblock %}

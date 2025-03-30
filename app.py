@@ -88,6 +88,14 @@ def create_app():
         setup_brief_routes(app, api)
         register_ml_api(api)
         
+        # Conditionally register the integrations blueprint if dependencies are available
+        try:
+            from api.integrations import integrations_bp
+            app.register_blueprint(integrations_bp)
+            logger.info("Integrations API registered successfully")
+        except ImportError as e:
+            logger.warning(f"Integrations API not registered due to missing dependencies: {str(e)}")
+        
         # Initialize ML service
         from services.ml_service import ml_service
         

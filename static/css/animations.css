@@ -271,3 +271,66 @@
 .animation-duration-fast { animation-duration: 0.3s; }
 .animation-duration-normal { animation-duration: 0.5s; }
 .animation-duration-slow { animation-duration: 0.8s; }
+
+/* Cloud Integration Animations */
+.connection-visual {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0;
+    position: relative;
+}
+
+.connection-source, .connection-target {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    z-index: 2;
+    background-color: var(--bs-body-bg);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.connection-line {
+    flex-grow: 1;
+    height: 3px;
+    background-color: var(--bs-gray-400);
+    margin: 0 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.connection-dot {
+    width: 12px;
+    height: 12px;
+    background-color: var(--bs-primary);
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+}
+
+@keyframes moveRightWithPulse {
+    0% {
+        left: 0;
+        transform: translateY(-50%) scale(1);
+        background-color: var(--bs-primary);
+    }
+    25% {
+        transform: translateY(-50%) scale(1.5);
+    }
+    50% {
+        transform: translateY(-50%) scale(1);
+        background-color: var(--bs-info);
+    }
+    75% {
+        transform: translateY(-50%) scale(1.5);
+    }
+    100% {
+        left: calc(100% - 12px);
+        transform: translateY(-50%) scale(1);
+        background-color: var(--bs-primary);
+    }
+}

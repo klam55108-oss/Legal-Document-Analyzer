@@ -19,6 +19,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Setup brief generation animations
     setupBriefGenerationAnimations();
+    
+    // Setup cloud integrations animations
+    setupIntegrationsAnimations();
+    
+    // Animate document cards on page load
+    animateDocumentCards();
+    
+    // Animate flash messages
+    animateFlashMessages();
 });
 
 // Add animated status indicators to document statuses
@@ -263,4 +272,121 @@ function animateFlashMessages() {
         alert.style.opacity = '0';
         alert.style.animationFillMode = 'forwards';
     });
+}
+
+// Setup cloud integrations animations
+function setupIntegrationsAnimations() {
+    // Add animations to integration cards
+    const integrationCards = document.querySelectorAll('.card');
+    integrationCards.forEach((card, index) => {
+        card.classList.add('animated');
+        card.style.animationDelay = (index * 0.1) + 's';
+    });
+    
+    // Add connection animation for integration buttons
+    const connectButtons = document.querySelectorAll('[id^="connect"]');
+    connectButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Show connecting animation
+            const originalText = this.textContent;
+            this.innerHTML = '<span class="loading-icon"></span> Connecting...';
+            this.disabled = true;
+            
+            // Get the closest form
+            const form = this.closest('form');
+            if (form) {
+                // Create a connection visual in the modal
+                const modalContent = this.closest('.modal-content');
+                if (modalContent) {
+                    const connectionStatus = document.createElement('div');
+                    connectionStatus.className = 'connection-status mt-3';
+                    connectionStatus.innerHTML = `
+                        <div class="connection-visual">
+                            <div class="connection-source">
+                                <i class="fas fa-laptop fa-2x"></i>
+                                <span>LegalDataInsights</span>
+                            </div>
+                            <div class="connection-line">
+                                <div class="connection-dot"></div>
+                            </div>
+                            <div class="connection-target">
+                                <i class="fas ${getServiceIcon(this.id)} fa-2x"></i>
+                                <span>${getServiceName(this.id)}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add to modal
+                    const modalBody = modalContent.querySelector('.modal-body');
+                    if (modalBody) {
+                        modalBody.appendChild(connectionStatus);
+                        // Animate the connection dot
+                        animateConnectionDot(connectionStatus.querySelector('.connection-dot'));
+                    }
+                }
+            }
+            
+            // Simulate connection process (in a real app, this would be an actual API call)
+            setTimeout(() => {
+                // Reset button
+                this.innerHTML = originalText;
+                this.disabled = false;
+                
+                // Show success message
+                const successMessage = document.createElement('div');
+                successMessage.className = 'alert alert-success mt-3 upload-complete';
+                successMessage.innerHTML = '<i class="fas fa-check-circle me-2"></i> Successfully connected! Redirecting...';
+                
+                // Add to modal
+                const modalContent = this.closest('.modal-content');
+                if (modalContent) {
+                    const modalBody = modalContent.querySelector('.modal-body');
+                    if (modalBody) {
+                        modalBody.appendChild(successMessage);
+                    }
+                }
+                
+                // In a real app, redirect to the next page or close modal
+                // For the demo, we'll just close the modal after a delay
+                setTimeout(() => {
+                    const modal = bootstrap.Modal.getInstance(this.closest('.modal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                }, 1500);
+            }, 2500);
+        });
+    });
+}
+
+// Helper function to get the service icon based on button ID
+function getServiceIcon(buttonId) {
+    if (buttonId.includes('GoogleDrive')) return 'fa-google-drive';
+    if (buttonId.includes('Dropbox')) return 'fa-dropbox';
+    if (buttonId.includes('Box')) return 'fa-box';
+    if (buttonId.includes('MSGraph')) return 'fa-microsoft';
+    if (buttonId.includes('Airtable')) return 'fa-table';
+    return 'fa-cloud';
+}
+
+// Helper function to get the service name based on button ID
+function getServiceName(buttonId) {
+    if (buttonId.includes('GoogleDrive')) return 'Google Drive';
+    if (buttonId.includes('Dropbox')) return 'Dropbox';
+    if (buttonId.includes('Box')) return 'Box';
+    if (buttonId.includes('MSGraph')) return 'Microsoft 365';
+    if (buttonId.includes('Airtable')) return 'Airtable';
+    return 'Cloud Service';
+}
+
+// Animate the connection dot traveling from source to target
+function animateConnectionDot(dot) {
+    if (!dot) return;
+    
+    // Reset the animation
+    dot.style.animation = 'none';
+    dot.offsetHeight; // Trigger reflow
+    
+    // Start the animation
+    dot.style.animation = 'moveRightWithPulse 2.5s ease-in-out infinite';
 }

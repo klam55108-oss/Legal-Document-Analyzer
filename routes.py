@@ -332,6 +332,13 @@ def setup_web_routes(app):
     @app.errorhandler(500)
     def server_error(e):
         return render_template('500.html'), 500
+        
+    @app.route('/integrations')
+    @login_required
+    def integrations():
+        """Show available third-party integrations."""
+        # This simply renders the UI template without requiring any of the integration libraries
+        return render_template('integrations.html')
     
     # KnowledgeVault Routes
     @app.route('/knowledge')

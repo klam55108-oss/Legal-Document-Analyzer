@@ -57,6 +57,10 @@
                             <a class="nav-link {% if request.path == url_for('plugins_list') %}active{% endif %}" 
                                href="{{ url_for('plugins_list') }}">Plugins</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == url_for('integrations') %}active{% endif %}" 
+                               href="{{ url_for('integrations') }}">Integrations</a>
+                        </li>
                     {% endif %}
                 </ul>
                 

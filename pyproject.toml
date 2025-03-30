@@ -30,4 +30,11 @@ dependencies = [
     "prefect>=3.2.15",
     "dask>=2025.3.0",
     "matplotlib>=3.10.1",
+    "google-auth>=2.38.0",
+    "google-auth-oauthlib>=1.0.0",
+    "google-api-python-client>=2.166.0",
+    "pyairtable>=3.0.2",
+    "dropbox>=12.0.2",
+    "boxsdk>=3.13.0",
+    "msgraph-core>=1.3.3",
 ]
