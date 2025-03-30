@@ -1,6 +1,7 @@
 """
 Application factory module for creating and configuring the Flask app.
 """
+import datetime
 import os
 import logging
 import traceback
@@ -10,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase
 from flask_restful import Api
 from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
+from flask_session import Session
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
@@ -26,6 +28,7 @@ class Base(DeclarativeBase):
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
 csrf = CSRFProtect()
+sess = Session()
 
 def create_app():
     """Create and configure the Flask application."""
@@ -33,9 +36,18 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "development-secret-key")
     
+    # Configure session
+    app.config['SESSION_TYPE'] = 'filesystem'
+    app.config['SESSION_PERMANENT'] = True
+    app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
+    app.config['SESSION_USE_SIGNER'] = True
+    app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flask_session')
+    os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+    
     # Configure CSRF protection
     app.config['WTF_CSRF_TIME_LIMIT'] = None  # Remove time limit on CSRF tokens
     app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow CSRF to work without HTTPS in development
+    app.config['WTF_CSRF_ENABLED'] = True
     
     # Configure database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
@@ -62,6 +74,7 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'web_login'
     csrf.init_app(app)
+    sess.init_app(app)
     
     # This will be handled by the db_utils module instead to unify all database error handling
     from utils.db_utils import setup_engine_event_listeners
