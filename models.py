@@ -14,10 +14,6 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     is_new_user = db.Column(db.Boolean, default=True)
     
-    # Password reset fields
-    reset_token = db.Column(db.String(100), unique=True, nullable=True)
-    reset_token_expiry = db.Column(db.DateTime, nullable=True)
-    
     # Relationships
     documents = db.relationship('Document', backref='owner', lazy='dynamic')
     briefs = db.relationship('Brief', backref='owner', lazy='dynamic')
@@ -31,28 +27,6 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
-    def generate_reset_token(self):
-        """Generate a unique token for password reset."""
-        import secrets
-        import datetime
-        
-        self.reset_token = secrets.token_urlsafe(64)
-        # Token expires in 24 hours
-        self.reset_token_expiry = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
-        return self.reset_token
-    
-    def verify_reset_token(self, token):
-        """Verify if the given token is valid and not expired."""
-        if self.reset_token and self.reset_token == token:
-            if self.reset_token_expiry and self.reset_token_expiry > datetime.datetime.utcnow():
-                return True
-        return False
-    
-    def clear_reset_token(self):
-        """Clear the reset token after it has been used."""
-        self.reset_token = None
-        self.reset_token_expiry = None
-            
     def __repr__(self):
         return f'<User {self.username}>'
 

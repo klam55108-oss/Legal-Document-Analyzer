@@ -19,26 +19,14 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField('Register')
     
     def validate_email(self, email):
-        try:
-            user = User.query.filter_by(email=email.data).first()
-            if user:
-                raise ValidationError('That email is already registered. Please use a different one.')
-        except Exception as e:
-            # Log the error but don't fail validation
-            import logging
-            logging.error(f"Database error during email validation: {str(e)}")
-            # We'll allow this to pass validation, and the error handling in the route will catch issues
+        user = User.query.filter_by(email=email.data).first()
+        if user:
+            raise ValidationError('That email is already registered. Please use a different one.')
             
     def validate_username(self, username):
-        try:
-            user = User.query.filter_by(username=username.data).first()
-            if user:
-                raise ValidationError('That username is already taken. Please choose a different one.')
-        except Exception as e:
-            # Log the error but don't fail validation
-            import logging
-            logging.error(f"Database error during username validation: {str(e)}")
-            # We'll allow this to pass validation, and the error handling in the route will catch issues
+        user = User.query.filter_by(username=username.data).first()
+        if user:
+            raise ValidationError('That username is already taken. Please choose a different one.')
             
 class KnowledgeEntryForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=255)])
@@ -58,13 +46,3 @@ class KnowledgeSearchForm(FlaskForm):
     query = StringField('Search Knowledge Base', validators=[Length(max=100)])
     tags = SelectMultipleField('Filter by Tags')
     submit = SubmitField('Search')
-    
-class RequestPasswordResetForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    submit = SubmitField('Request Password Reset')
-    
-class ResetPasswordForm(FlaskForm):
-    password = PasswordField('New Password', validators=[DataRequired(), Length(min=8)])
-    password_confirm = PasswordField('Confirm New Password', 
-                                  validators=[DataRequired(), EqualTo('password')])
-    submit = SubmitField('Reset Password')

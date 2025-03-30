@@ -1,15 +1,13 @@
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user, login_user, logout_user
 import os
-import traceback
 from app import db
 from models import User, Document, Brief, Statute, KnowledgeEntry, Tag, Reference
 from services.document_parser import is_allowed_file
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
-from forms import LoginForm, RegistrationForm, RequestPasswordResetForm, ResetPasswordForm
-from services.email_service import email_service
+from forms import LoginForm, RegistrationForm
 from datetime import datetime
 from services.brief_generator import generate_brief as brief_generator_service
 from services.knowledge_service import (
@@ -39,19 +37,14 @@ def setup_web_routes(app):
             
         form = LoginForm()
         if form.validate_on_submit():
-            try:
-                user = User.query.filter_by(email=form.email.data).first()
-                
-                if user and user.check_password(form.password.data):
-                    login_user(user, remember=form.remember.data)
-                    next_page = request.args.get('next')
-                    return redirect(next_page or url_for('dashboard'))
-                else:
-                    flash('Invalid email or password', 'danger')
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error during login: {str(e)}")
-                flash('An error occurred during login. Please try again.', 'danger')
+            user = User.query.filter_by(email=form.email.data).first()
+            
+            if user and user.check_password(form.password.data):
+                login_user(user, remember=form.remember.data)
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('dashboard'))
+            else:
+                flash('Invalid email or password', 'danger')
                 
         return render_template('login.html', form=form)
         
@@ -62,46 +55,16 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
         
         form = RegistrationForm()
-        
-        # Explicitly check POST method for better error handling
-        if request.method == 'POST':
-            logger.info("Processing registration form submission")
-            # Add debug information about the form
-            logger.debug(f"Form data: {request.form}")
-            logger.debug(f"Form is submitted: {form.is_submitted()}")
-            logger.debug(f"Form validates: {form.validate()}")
+        if form.validate_on_submit():
+            # Create new user
+            user = User(username=form.username.data, email=form.email.data)
+            user.set_password(form.password.data)
             
-            if not form.csrf_token.data:
-                logger.error("Missing CSRF token in form submission")
-                flash('Security token missing. Please refresh the page and try again.', 'danger')
-                return render_template('register.html', form=form)
+            db.session.add(user)
+            db.session.commit()
             
-            try:
-                if form.validate_on_submit():
-                    logger.info("Form validated successfully")
-                    # Create new user in a transaction
-                    user = User(username=form.username.data, email=form.email.data)
-                    user.set_password(form.password.data)
-                    
-                    # Explicitly begin a new transaction
-                    db.session.begin()
-                    
-                    # Add user to the session
-                    db.session.add(user)
-                    db.session.commit()
-                    
-                    logger.info(f"User registered successfully: {user.username}")
-                    flash('Registration successful! You can now log in.', 'success')
-                    return redirect(url_for('web_login'))
-                else:
-                    logger.warning("Form validation failed")
-                    for field, errors in form.errors.items():
-                        logger.warning(f"Form field '{field}' has errors: {errors}")
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error during registration: {str(e)}")
-                logger.error(traceback.format_exc())
-                flash('An error occurred during registration. Please try again.', 'danger')
+            flash('Registration successful! You can now log in.', 'success')
+            return redirect(url_for('web_login'))
             
         return render_template('register.html', form=form)
         
@@ -112,74 +75,6 @@ def setup_web_routes(app):
         logout_user()
         flash('You have been logged out', 'info')
         return redirect(url_for('index'))
-        
-    @app.route('/reset_password_request', methods=['GET', 'POST'])
-    def request_password_reset():
-        """Handle password reset request."""
-        if current_user.is_authenticated:
-            return redirect(url_for('dashboard'))
-            
-        form = RequestPasswordResetForm()
-        if form.validate_on_submit():
-            try:
-                user = User.query.filter_by(email=form.email.data).first()
-                if user:
-                    token = user.generate_reset_token()
-                    db.session.commit()
-                    
-                    # Send password reset email
-                    email_sent = email_service.send_password_reset_email(user, token)
-                    
-                    if email_sent:
-                        flash('Check your email for instructions to reset your password.', 'info')
-                    else:
-                        flash('Could not send reset email. Please try again later or contact support.', 'warning')
-                else:
-                    # For security reasons, don't reveal that the email doesn't exist
-                    flash('Check your email for instructions to reset your password.', 'info')
-                    
-                return redirect(url_for('web_login'))
-            except Exception as e:
-                db.session.rollback()
-                logger.error(f"Error in password reset request: {str(e)}")
-                flash('An error occurred. Please try again later.', 'danger')
-            
-        return render_template('reset_password_request.html', form=form)
-        
-    @app.route('/reset_password/<token>', methods=['GET', 'POST'])
-    def reset_password(token):
-        """Handle password reset with token."""
-        if current_user.is_authenticated:
-            return redirect(url_for('dashboard'))
-        
-        try:
-            # Find user with this token
-            user = User.query.filter_by(reset_token=token).first()
-            
-            # Check if token exists and is valid
-            if not user or not user.verify_reset_token(token):
-                flash('Invalid or expired reset link.', 'danger')
-                return redirect(url_for('request_password_reset'))
-                
-            form = ResetPasswordForm()
-            if form.validate_on_submit():
-                try:
-                    user.set_password(form.password.data)
-                    user.clear_reset_token()
-                    db.session.commit()
-                    flash('Your password has been reset successfully.', 'success')
-                    return redirect(url_for('web_login'))
-                except Exception as e:
-                    db.session.rollback()
-                    logger.error(f"Error in password reset: {str(e)}")
-                    flash('An error occurred while resetting your password. Please try again.', 'danger')
-                
-            return render_template('reset_password.html', form=form)
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error accessing reset page: {str(e)}")
-            flash('An error occurred. Please try requesting a new password reset link.', 'danger')
-            return redirect(url_for('request_password_reset'))
     
     @app.route('/dashboard')
     @login_required
@@ -826,24 +721,17 @@ def setup_web_routes(app):
     @login_required
     def onboarding_wizard():
         """Entry point for the user onboarding wizard."""
-        try:
-            # Initialize onboarding progress if it doesn't exist
-            progress = OnboardingService.get_progress(current_user)
-                
-            # If user has completed onboarding, redirect to dashboard
-            if progress and progress.onboarding_completed:
-                flash('You have already completed the onboarding process.', 'info')
-                return redirect(url_for('dashboard'))
-                
-            # Render the appropriate step template based on current progress
-            step = progress.current_step if progress else 1
-            return render_template(f'onboarding/step{step}.html', progress=progress)
-        except Exception as e:
-            # Something went wrong, log the error and show a generic message
-            logger.error(f"Error accessing onboarding wizard: {str(e)}")
-            db.session.rollback()  # Ensure any failed transaction is rolled back
-            flash('We encountered an issue with the onboarding process. Please try again.', 'danger')
+        # Initialize onboarding progress if it doesn't exist
+        progress = OnboardingService.get_progress(current_user)
+            
+        # If user has completed onboarding, redirect to dashboard
+        if progress and progress.onboarding_completed:
+            flash('You have already completed the onboarding process.', 'info')
             return redirect(url_for('dashboard'))
+            
+        # Render the appropriate step template based on current progress
+        step = progress.current_step if progress else 1
+        return render_template(f'onboarding/step{step}.html', progress=progress)
         
     @app.route('/onboarding/next/<int:current_step>', methods=['POST'])
     @login_required
@@ -855,16 +743,16 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
+            
+        # Get current progress
+        progress = OnboardingService.get_progress(current_user)
+            
+        # Validate the step
+        if progress.current_step != current_step:
+            flash('Invalid step transition.', 'warning')
+            return redirect(url_for('onboarding_wizard'))
         
         try:
-            # Get current progress - this method now has built-in transaction handling
-            progress = OnboardingService.get_progress(current_user)
-                
-            # Validate the step
-            if progress.current_step != current_step:
-                flash('Invalid step transition.', 'warning')
-                return redirect(url_for('onboarding_wizard'))
-            
             # Mark this step as completed and move to the next
             OnboardingService.complete_step(current_user, current_step)
             
@@ -877,7 +765,6 @@ def setup_web_routes(app):
             return redirect(url_for('onboarding_wizard'))
         except Exception as e:
             logger.error(f"Error in onboarding process: {str(e)}")
-            db.session.rollback()  # Ensure any failed transaction is rolled back
             flash('An error occurred during the onboarding process. Please try again.', 'danger')
             return redirect(url_for('onboarding_wizard'))
         
@@ -891,16 +778,10 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
-        
-        try:    
-            OnboardingService.skip_onboarding(current_user)
-            flash('Onboarding has been skipped. You can access it again from your profile settings if needed.', 'info')
-            return redirect(url_for('dashboard'))
-        except Exception as e:
-            logger.error(f"Error skipping onboarding: {str(e)}")
-            db.session.rollback()  # Ensure any failed transaction is rolled back
-            flash('An error occurred when skipping the onboarding process. Please try again.', 'danger')
-            return redirect(url_for('onboarding_wizard'))
+            
+        OnboardingService.skip_onboarding(current_user)
+        flash('Onboarding has been skipped. You can access it again from your profile settings if needed.', 'info')
+        return redirect(url_for('dashboard'))
         
     @app.route('/onboarding/restart', methods=['POST'])
     @login_required
@@ -912,14 +793,8 @@ def setup_web_routes(app):
         if not form.validate_on_submit():
             flash('CSRF token missing or invalid', 'danger')
             return redirect(url_for('onboarding_wizard'))
-        
-        try:    
-            # Initialize new onboarding progress
-            OnboardingService.initialize_onboarding(current_user)
-            flash('Onboarding process has been restarted.', 'info')
-            return redirect(url_for('onboarding_wizard'))
-        except Exception as e:
-            logger.error(f"Error restarting onboarding: {str(e)}")
-            db.session.rollback()  # Ensure any failed transaction is rolled back
-            flash('An error occurred when restarting the onboarding process. Please try again.', 'danger')
-            return redirect(url_for('dashboard'))
+            
+        # Initialize new onboarding progress
+        OnboardingService.initialize_onboarding(current_user)
+        flash('Onboarding process has been restarted.', 'info')
+        return redirect(url_for('onboarding_wizard'))
