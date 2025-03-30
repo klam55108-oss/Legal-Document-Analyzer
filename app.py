@@ -33,6 +33,10 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "development-secret-key")
     
+    # Configure CSRF protection
+    app.config['WTF_CSRF_TIME_LIMIT'] = None  # Remove time limit on CSRF tokens
+    app.config['WTF_CSRF_SSL_STRICT'] = False  # Allow CSRF to work without HTTPS in development
+    
     # Configure database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
