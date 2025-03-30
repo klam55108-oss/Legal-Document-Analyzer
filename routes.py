@@ -227,6 +227,8 @@ def setup_web_routes(app):
     @login_required
     def briefs():
         """List all briefs generated for the user."""
+        from flask_wtf import FlaskForm
+        
         page = request.args.get('page', 1, type=int)
         per_page = 10
         
@@ -234,22 +236,38 @@ def setup_web_routes(app):
             Brief.generated_at.desc()
         ).paginate(page=page, per_page=per_page)
         
-        return render_template('briefs.html', briefs=briefs)
+        # Create a form for CSRF protection
+        form = FlaskForm()
+        
+        return render_template('briefs.html', briefs=briefs, form=form)
     
     @app.route('/briefs/<int:brief_id>')
     @login_required
     def brief_detail(brief_id):
         """Show details of a specific brief."""
+        from flask_wtf import FlaskForm
+        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         document = Document.query.get_or_404(brief.document_id)
         
-        return render_template('brief_detail.html', brief=brief, document=document)
+        # Create a form for CSRF protection
+        form = FlaskForm()
+        
+        return render_template('brief_detail.html', brief=brief, document=document, form=form)
         
     @app.route('/briefs/<int:brief_id>/delete', methods=['POST'])
     @login_required
     def delete_brief(brief_id):
         """Delete a brief."""
+        from flask_wtf import FlaskForm
+        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
+        
+        # Create a form to validate CSRF token
+        form = FlaskForm()
+        if not form.validate_on_submit():
+            flash('CSRF token missing or invalid', 'danger')
+            return redirect(url_for('briefs'))
         
         # Delete the brief
         db.session.delete(brief)
