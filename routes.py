@@ -1,6 +1,7 @@
 from flask import render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user, login_user, logout_user
 import os
+import traceback
 from app import db
 from models import User, Document, Brief, Statute, KnowledgeEntry, Tag, Reference
 from services.document_parser import is_allowed_file
@@ -61,20 +62,45 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
         
         form = RegistrationForm()
-        if form.validate_on_submit():
+        
+        # Explicitly check POST method for better error handling
+        if request.method == 'POST':
+            logger.info("Processing registration form submission")
+            # Add debug information about the form
+            logger.debug(f"Form data: {request.form}")
+            logger.debug(f"Form is submitted: {form.is_submitted()}")
+            logger.debug(f"Form validates: {form.validate()}")
+            
+            if not form.csrf_token.data:
+                logger.error("Missing CSRF token in form submission")
+                flash('Security token missing. Please refresh the page and try again.', 'danger')
+                return render_template('register.html', form=form)
+            
             try:
-                # Create new user
-                user = User(username=form.username.data, email=form.email.data)
-                user.set_password(form.password.data)
-                
-                db.session.add(user)
-                db.session.commit()
-                
-                flash('Registration successful! You can now log in.', 'success')
-                return redirect(url_for('web_login'))
+                if form.validate_on_submit():
+                    logger.info("Form validated successfully")
+                    # Create new user in a transaction
+                    user = User(username=form.username.data, email=form.email.data)
+                    user.set_password(form.password.data)
+                    
+                    # Explicitly begin a new transaction
+                    db.session.begin()
+                    
+                    # Add user to the session
+                    db.session.add(user)
+                    db.session.commit()
+                    
+                    logger.info(f"User registered successfully: {user.username}")
+                    flash('Registration successful! You can now log in.', 'success')
+                    return redirect(url_for('web_login'))
+                else:
+                    logger.warning("Form validation failed")
+                    for field, errors in form.errors.items():
+                        logger.warning(f"Form field '{field}' has errors: {errors}")
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error during registration: {str(e)}")
+                logger.error(traceback.format_exc())
                 flash('An error occurred during registration. Please try again.', 'danger')
             
         return render_template('register.html', form=form)
