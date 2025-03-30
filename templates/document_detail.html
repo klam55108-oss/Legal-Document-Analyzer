@@ -234,6 +234,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="generateBriefForm" action="{{ url_for('generate_brief', document_id=document.id) }}" method="post">
+                {{ form.csrf_token }}
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="briefTitle" class="form-label">Brief Title (Optional)</label>
@@ -269,6 +270,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form action="{{ url_for('delete_document', document_id=document.id) }}" method="post">
+                    {{ form.csrf_token }}
                     <button type="submit" class="btn btn-danger">Delete Document</button>
                 </form>
             </div>

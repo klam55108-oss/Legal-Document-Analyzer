@@ -184,14 +184,20 @@ def setup_web_routes(app):
     @login_required
     def document_detail(document_id):
         """Show details of a specific document."""
+        from flask_wtf import FlaskForm
+        
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         briefs = Brief.query.filter_by(document_id=document.id).all()
         statutes = Statute.query.filter_by(document_id=document.id).all()
         
+        # Create a simple form for CSRF protection
+        form = FlaskForm()
+        
         return render_template('document_detail.html', 
                               document=document, 
                               briefs=briefs,
-                              statutes=statutes)
+                              statutes=statutes,
+                              form=form)
                               
     @app.route('/documents/<int:document_id>/delete', methods=['POST'])
     @login_required
