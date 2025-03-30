@@ -38,14 +38,19 @@ def setup_web_routes(app):
             
         form = LoginForm()
         if form.validate_on_submit():
-            user = User.query.filter_by(email=form.email.data).first()
-            
-            if user and user.check_password(form.password.data):
-                login_user(user, remember=form.remember.data)
-                next_page = request.args.get('next')
-                return redirect(next_page or url_for('dashboard'))
-            else:
-                flash('Invalid email or password', 'danger')
+            try:
+                user = User.query.filter_by(email=form.email.data).first()
+                
+                if user and user.check_password(form.password.data):
+                    login_user(user, remember=form.remember.data)
+                    next_page = request.args.get('next')
+                    return redirect(next_page or url_for('dashboard'))
+                else:
+                    flash('Invalid email or password', 'danger')
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error during login: {str(e)}")
+                flash('An error occurred during login. Please try again.', 'danger')
                 
         return render_template('login.html', form=form)
         
@@ -57,15 +62,20 @@ def setup_web_routes(app):
         
         form = RegistrationForm()
         if form.validate_on_submit():
-            # Create new user
-            user = User(username=form.username.data, email=form.email.data)
-            user.set_password(form.password.data)
-            
-            db.session.add(user)
-            db.session.commit()
-            
-            flash('Registration successful! You can now log in.', 'success')
-            return redirect(url_for('web_login'))
+            try:
+                # Create new user
+                user = User(username=form.username.data, email=form.email.data)
+                user.set_password(form.password.data)
+                
+                db.session.add(user)
+                db.session.commit()
+                
+                flash('Registration successful! You can now log in.', 'success')
+                return redirect(url_for('web_login'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error during registration: {str(e)}")
+                flash('An error occurred during registration. Please try again.', 'danger')
             
         return render_template('register.html', form=form)
         
@@ -85,23 +95,28 @@ def setup_web_routes(app):
             
         form = RequestPasswordResetForm()
         if form.validate_on_submit():
-            user = User.query.filter_by(email=form.email.data).first()
-            if user:
-                token = user.generate_reset_token()
-                db.session.commit()
-                
-                # Send password reset email
-                email_sent = email_service.send_password_reset_email(user, token)
-                
-                if email_sent:
-                    flash('Check your email for instructions to reset your password.', 'info')
+            try:
+                user = User.query.filter_by(email=form.email.data).first()
+                if user:
+                    token = user.generate_reset_token()
+                    db.session.commit()
+                    
+                    # Send password reset email
+                    email_sent = email_service.send_password_reset_email(user, token)
+                    
+                    if email_sent:
+                        flash('Check your email for instructions to reset your password.', 'info')
+                    else:
+                        flash('Could not send reset email. Please try again later or contact support.', 'warning')
                 else:
-                    flash('Could not send reset email. Please try again later or contact support.', 'warning')
-            else:
-                # For security reasons, don't reveal that the email doesn't exist
-                flash('Check your email for instructions to reset your password.', 'info')
-                
-            return redirect(url_for('web_login'))
+                    # For security reasons, don't reveal that the email doesn't exist
+                    flash('Check your email for instructions to reset your password.', 'info')
+                    
+                return redirect(url_for('web_login'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Error in password reset request: {str(e)}")
+                flash('An error occurred. Please try again later.', 'danger')
             
         return render_template('reset_password_request.html', form=form)
         
@@ -110,24 +125,35 @@ def setup_web_routes(app):
         """Handle password reset with token."""
         if current_user.is_authenticated:
             return redirect(url_for('dashboard'))
-            
-        # Find user with this token
-        user = User.query.filter_by(reset_token=token).first()
         
-        # Check if token exists and is valid
-        if not user or not user.verify_reset_token(token):
-            flash('Invalid or expired reset link.', 'danger')
+        try:
+            # Find user with this token
+            user = User.query.filter_by(reset_token=token).first()
+            
+            # Check if token exists and is valid
+            if not user or not user.verify_reset_token(token):
+                flash('Invalid or expired reset link.', 'danger')
+                return redirect(url_for('request_password_reset'))
+                
+            form = ResetPasswordForm()
+            if form.validate_on_submit():
+                try:
+                    user.set_password(form.password.data)
+                    user.clear_reset_token()
+                    db.session.commit()
+                    flash('Your password has been reset successfully.', 'success')
+                    return redirect(url_for('web_login'))
+                except Exception as e:
+                    db.session.rollback()
+                    logger.error(f"Error in password reset: {str(e)}")
+                    flash('An error occurred while resetting your password. Please try again.', 'danger')
+                
+            return render_template('reset_password.html', form=form)
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error accessing reset page: {str(e)}")
+            flash('An error occurred. Please try requesting a new password reset link.', 'danger')
             return redirect(url_for('request_password_reset'))
-            
-        form = ResetPasswordForm()
-        if form.validate_on_submit():
-            user.set_password(form.password.data)
-            user.clear_reset_token()
-            db.session.commit()
-            flash('Your password has been reset successfully.', 'success')
-            return redirect(url_for('web_login'))
-            
-        return render_template('reset_password.html', form=form)
     
     @app.route('/dashboard')
     @login_required
