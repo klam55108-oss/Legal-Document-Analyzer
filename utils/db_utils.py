@@ -149,11 +149,11 @@ def setup_engine_event_listeners(engine):
             raise OperationalError("Database connection failed validation check")
     
     @event.listens_for(engine, "handle_error")
-    def handle_error(context, *args, **kwargs):
+    def handle_error(context, exc, *args, **kwargs):
         """Handle database errors at the engine level."""
         global db_healthy
         db_healthy = False
-        logger.error(f"Database error: {str(context.original_exception)}")
+        logger.error(f"Database error: {str(exc)}")
         
         # Try to recover from the error by forcing a connection reset
         try:

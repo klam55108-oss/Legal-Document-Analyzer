@@ -18,21 +18,8 @@ logger = logging.getLogger(__name__)
 # Import the application from app.py with all its enhancements
 from app import app
 
-# Add a PostgreSQL-specific listener to handle aborted transactions
-@event.listens_for(Engine, "handle_error")
-def handle_engine_error(context, exc, *args, **kwargs):
-    """Listen for database errors and log them."""
-    if isinstance(exc, OperationalError):
-        logger.error(f"Database operational error: {str(exc)}")
-    logger.error(f"Database error: {str(exc)}")
-    
-    # Try to recover from the error by forcing a connection reset
-    try:
-        if hasattr(context, 'connection'):
-            context.connection.connection.rollback()
-            logger.info("Forced connection rollback after error")
-    except Exception as e:
-        logger.error(f"Failed to rollback connection: {str(e)}")
+# Database error handling is now centralized in utils/db_utils.py
+# to avoid duplicate event listener registrations
 
 # Run the application when executed directly
 if __name__ == "__main__":
