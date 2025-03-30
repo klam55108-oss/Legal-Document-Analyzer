@@ -39,14 +39,14 @@ def setup_web_routes(app):
         form = LoginForm()
         if form.validate_on_submit():
             try:
-                user = User.query.filter_by(email=form.email.data).first()
+                user = User.query.filter_by(username=form.username.data).first()
                 
                 if user and user.check_password(form.password.data):
                     login_user(user, remember=form.remember.data)
                     next_page = request.args.get('next')
                     return redirect(next_page or url_for('dashboard'))
                 else:
-                    flash('Invalid email or password', 'danger')
+                    flash('Invalid username or password', 'danger')
             except Exception as e:
                 db.session.rollback()
                 logger.error(f"Error during login: {str(e)}")
