@@ -35,8 +35,8 @@ def generate_brief(document, custom_title=None, focus_areas=None):
         
         # Parse the document text
         logger.info(f"Parsing document from path: {document.file_path}")
-        from services.document_parser import parse_document
-        document_text = parse_document(document.file_path)
+        from services.document_parser import document_parser
+        document_text = document_parser.parse_document(document.file_path)
         
         # Check if we got valid text
         if not document_text:
