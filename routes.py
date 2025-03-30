@@ -44,6 +44,10 @@ def setup_web_routes(app):
         
         if form.validate_on_submit():
             logger.info(f"Form validated, attempting login for user: {form.username.data}")
+            
+            # Start a transaction for any database operations
+            db.session.begin_nested()
+            
             try:
                 user = User.query.filter_by(username=form.username.data).first()
                 logger.info(f"User found: {user is not None}")
@@ -60,14 +64,20 @@ def setup_web_routes(app):
                         logger.info(f"Creating onboarding progress for existing user: {user.id}")
                         progress = OnboardingProgress(user=user)
                         db.session.add(progress)
-                        db.session.commit()
+                        # We'll commit the transaction below
+                    
+                    # Commit any database changes
+                    db.session.commit()
                     
                     next_page = request.args.get('next')
                     return redirect(next_page or url_for('dashboard'))
                 else:
+                    # No changes to commit, but we'll rollback to be safe
+                    db.session.rollback()
                     logger.warning(f"Invalid login attempt for username: {form.username.data}")
                     flash('Invalid username or password', 'danger')
             except Exception as e:
+                # Roll back any database changes on error
                 db.session.rollback()
                 logger.error(f"Error during login: {str(e)}")
                 flash('An error occurred during login. Please try again.', 'danger')
@@ -85,6 +95,10 @@ def setup_web_routes(app):
         
         if form.validate_on_submit():
             logger.info(f"Form validated: {form.username.data}, {form.email.data}")
+            
+            # Begin a new transaction scope
+            db.session.begin_nested()
+            
             try:
                 # Create new user
                 user = User(username=form.username.data, email=form.email.data)
@@ -92,19 +106,22 @@ def setup_web_routes(app):
                 
                 logger.info("Adding user to database")
                 db.session.add(user)
-                db.session.commit()
+                db.session.flush()  # Flush to get the ID without committing
                 logger.info(f"User created with ID: {user.id}")
                 
-                # Create onboarding progress record
+                # Create onboarding progress record in the same transaction
                 from models import OnboardingProgress
                 progress = OnboardingProgress(user=user)
                 db.session.add(progress)
+                
+                # Commit the entire transaction
                 db.session.commit()
-                logger.info(f"Created onboarding progress for user: {user.id}")
+                logger.info(f"Completed registration for user: {user.id}")
                 
                 flash('Registration successful! You can now log in.', 'success')
                 return redirect(url_for('web_login'))
             except Exception as e:
+                # Roll back the transaction on any error
                 db.session.rollback()
                 logger.error(f"Error during registration: {str(e)}")
                 flash('An error occurred during registration. Please try again.', 'danger')
