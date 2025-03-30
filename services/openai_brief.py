@@ -60,25 +60,27 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
             try:
                 # Import needed here to avoid circular imports
                 from models import Statute
-                from app import db
+                from app import app, db
                 
-                statutes = Statute.query.filter_by(document_id=document_id).all()
-                if statutes:
-                    statutes_text = "Relevant Statutes and Regulations:\n"
-                    for statute in statutes:
-                        status = "CURRENT" if statute.is_current else "OUTDATED"
-                        statutes_text += f"- {statute.reference} [{status}]\n"
+                # Use application context to ensure DB operations happen within scope
+                with app.app_context():
+                    statutes = Statute.query.filter_by(document_id=document_id).all()
+                    if statutes:
+                        statutes_text = "Relevant Statutes and Regulations:\n"
+                        for statute in statutes:
+                            status = "CURRENT" if statute.is_current else "OUTDATED"
+                            statutes_text += f"- {statute.reference} [{status}]\n"
+                            
+                            if statute.content:
+                                # Add a snippet of the context
+                                context = statute.content
+                                if len(context) > 150:
+                                    context = context[:150] + "..."
+                                statutes_text += f"  Context: {context}\n"
                         
-                        if statute.content:
-                            # Add a snippet of the context
-                            context = statute.content
-                            if len(context) > 150:
-                                context = context[:150] + "..."
-                            statutes_text += f"  Context: {context}\n"
-                    
-                    logger.info(f"Found {len(statutes)} statutes for document {document_id}")
-                else:
-                    logger.info(f"No statutes found for document {document_id}")
+                        logger.info(f"Found {len(statutes)} statutes for document {document_id}")
+                    else:
+                        logger.info(f"No statutes found for document {document_id}")
             except Exception as e:
                 logger.warning(f"Error retrieving statutes: {e}")
         
