@@ -9,7 +9,7 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-def generate_brief_with_openai(document_text, title, focus_areas=None, document_id=None):
+def generate_brief_with_openai(document_text, title, focus_areas=None):
     """
     Generate a legal brief using OpenAI API.
     
@@ -17,7 +17,6 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
         document_text (str): The text content of the document
         title (str): Title for the brief
         focus_areas (list, optional): List of areas to focus on in the brief
-        document_id (int, optional): Document ID to fetch related statutes
         
     Returns:
         tuple: (content, summary)
@@ -54,36 +53,6 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
         else:
             logger.info("No focus areas specified")
         
-        # Get statutes if document_id is provided
-        statutes_text = ""
-        if document_id:
-            try:
-                # Import needed here to avoid circular imports
-                from models import Statute
-                from app import app, db
-                
-                # Use application context to ensure DB operations happen within scope
-                with app.app_context():
-                    statutes = Statute.query.filter_by(document_id=document_id).all()
-                    if statutes:
-                        statutes_text = "Relevant Statutes and Regulations:\n"
-                        for statute in statutes:
-                            status = "CURRENT" if statute.is_current else "OUTDATED"
-                            statutes_text += f"- {statute.reference} [{status}]\n"
-                            
-                            if statute.content:
-                                # Add a snippet of the context
-                                context = statute.content
-                                if len(context) > 150:
-                                    context = context[:150] + "..."
-                                statutes_text += f"  Context: {context}\n"
-                        
-                        logger.info(f"Found {len(statutes)} statutes for document {document_id}")
-                    else:
-                        logger.info(f"No statutes found for document {document_id}")
-            except Exception as e:
-                logger.warning(f"Error retrieving statutes: {e}")
-        
         # Construct the prompt
         prompt = f"""Create a detailed legal brief based on the following document content.
             
@@ -91,20 +60,16 @@ Document title: {title}
 
 {focus_areas_text}
 
-{statutes_text}
-
 Structure the brief with these sections:
 1. Introduction
 2. Factual Background
 3. Legal Issues
 4. Legal Analysis
 5. Conclusion
-6. Statutes and Regulations (include this only if statutes are provided above)
 
 Document content: {doc_content}
 
-Please format the brief in Markdown with appropriate headings. 
-If statutes are provided above, be sure to analyze them in your legal analysis and include them in the Statutes section."""
+Please format the brief in Markdown with appropriate headings."""
         
         # Call OpenAI API
         logger.info("Calling OpenAI API to generate brief content")

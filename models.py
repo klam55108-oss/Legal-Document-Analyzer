@@ -12,14 +12,12 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     api_key = db.Column(db.String(64), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    is_new_user = db.Column(db.Boolean, default=True)
     
     # Relationships
     documents = db.relationship('Document', backref='owner', lazy='dynamic')
     briefs = db.relationship('Brief', backref='owner', lazy='dynamic')
     knowledge_entries = db.relationship('KnowledgeEntry', backref='owner', lazy='dynamic')
     knowledge_tags = db.relationship('Tag', backref='creator', lazy='dynamic')
-    onboarding_progress = db.relationship('OnboardingProgress', backref='user', uselist=False, lazy='joined', cascade='all, delete-orphan')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -161,28 +159,3 @@ class SearchLog(db.Model):
     
     def __repr__(self):
         return f'<SearchLog {self.query}>'
-
-class OnboardingProgress(db.Model):
-    __tablename__ = 'onboarding_progress'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-    
-    # Onboarding steps tracking
-    welcome_completed = db.Column(db.Boolean, default=False)
-    document_upload_completed = db.Column(db.Boolean, default=False)
-    document_analysis_completed = db.Column(db.Boolean, default=False)
-    brief_generation_completed = db.Column(db.Boolean, default=False)
-    knowledge_creation_completed = db.Column(db.Boolean, default=False)
-    onboarding_completed = db.Column(db.Boolean, default=False)
-    
-    # Current step in the wizard
-    current_step = db.Column(db.Integer, default=1)
-    
-    # Foreign Keys
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
-    tutorial_document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=True)
-    
-    def __repr__(self):
-        return f'<OnboardingProgress user_id={self.user_id} step={self.current_step}>'

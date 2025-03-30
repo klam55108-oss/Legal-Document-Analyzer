@@ -15,7 +15,6 @@
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    {% block styles %}{% endblock %}
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -75,6 +74,7 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                                 <li><a class="dropdown-item" href="#">Profile</a></li>
                                 <li><a class="dropdown-item" href="#">Settings</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('onboarding_wizard') }}">Tutorial</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
                             </ul>

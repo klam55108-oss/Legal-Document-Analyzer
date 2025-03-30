@@ -198,7 +198,7 @@ def analyze_document_for_statutes(document_text):
                 Only include formal statute and regulation citations - not general references to laws or Acts.
                 Format each citation consistently and precisely as it would appear in legal documents.
                 
-                Return as a JSON object with a "statutes" array containing objects with "reference" and "context" fields.
+                Return as a JSON array of statute objects.
                 
                 Document text:
                 {document_text[:15000]}
@@ -216,34 +216,8 @@ def analyze_document_for_statutes(document_text):
         statutes = result.get("statutes", [])
         if not statutes and "citations" in result:
             statutes = result.get("citations", [])
-            
-        # Ensure we have the right format for statutes
-        formatted_statutes = []
-        for statute in statutes:
-            # Check if we need to reformat the data
-            if "reference" not in statute and "citation" in statute:
-                formatted_statute = {
-                    "reference": statute.get("citation"),
-                    "context": statute.get("context", "")
-                }
-                formatted_statutes.append(formatted_statute)
-            # If it's already in the right format, use it as is
-            elif "reference" in statute:
-                formatted_statutes.append(statute)
-            # If we have a different format, try to adapt it
-            else:
-                keys = statute.keys()
-                if len(keys) >= 2:
-                    # Get the first key as reference and second as context
-                    key_list = list(keys)
-                    formatted_statute = {
-                        "reference": statute.get(key_list[0], ""),
-                        "context": statute.get(key_list[1], "")
-                    }
-                    formatted_statutes.append(formatted_statute)
-                    
-        logger.info(f"Found {len(formatted_statutes)} statute references in document")
-        return formatted_statutes
+        
+        return statutes
         
     except Exception as e:
         logger.error(f"Error in analyze_document_for_statutes: {e}", exc_info=True)

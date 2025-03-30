@@ -208,6 +208,23 @@
         </div>
     </div>
 
+    <!-- New User Welcome Banner (will only show for new users) -->
+    {% if current_user.is_new_user %}
+    <div class="alert alert-primary mb-4" role="alert">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="alert-heading"><i class="fas fa-wave-square me-2"></i>Welcome to LegalDataInsights!</h4>
+                <p>Not sure where to start? Take a guided tutorial to learn how the platform works.</p>
+            </div>
+            <div>
+                <a href="{{ url_for('onboarding_wizard') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-graduation-cap me-2"></i> Start Tutorial
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Quick Actions -->
     <div class="row">
         <div class="col-md-6 mb-4">
@@ -231,6 +248,9 @@
                         </a>
                         <a href="{{ url_for('api_docs') }}" class="btn btn-outline-info">
                             <i class="fas fa-code me-2"></i> API Documentation
+                        </a>
+                        <a href="{{ url_for('onboarding_wizard') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-graduation-cap me-2"></i> Interactive Tutorial
                         </a>
                     </div>
                 </div>

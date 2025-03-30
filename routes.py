@@ -19,7 +19,6 @@ from services.knowledge_service import (
     extract_knowledge_from_document,
     get_trending_tags
 )
-from services.onboarding_service import OnboardingService
 
 logger = logging.getLogger(__name__)
 
@@ -159,17 +158,6 @@ def setup_web_routes(app):
                     # Analyze the document content
                     analysis_results = analyze_document(document_text, new_document.id)
                     
-                    # Extract statutes separately using OpenAI if available
-                    try:
-                        from services.openai_document import analyze_document_for_statutes
-                        statutes = analyze_document_for_statutes(document_text)
-                        if statutes and len(statutes) > 0:
-                            logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
-                            from services.text_analysis import store_statutes
-                            store_statutes(statutes, new_document.id)
-                    except Exception as e:
-                        logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
-                    
                     # Mark document as processed
                     new_document.processed = True
                     db.session.commit()
@@ -196,20 +184,14 @@ def setup_web_routes(app):
     @login_required
     def document_detail(document_id):
         """Show details of a specific document."""
-        from flask_wtf import FlaskForm
-        
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         briefs = Brief.query.filter_by(document_id=document.id).all()
         statutes = Statute.query.filter_by(document_id=document.id).all()
         
-        # Create a simple form for CSRF protection
-        form = FlaskForm()
-        
         return render_template('document_detail.html', 
                               document=document, 
                               briefs=briefs,
-                              statutes=statutes,
-                              form=form)
+                              statutes=statutes)
                               
     @app.route('/documents/<int:document_id>/delete', methods=['POST'])
     @login_required
@@ -239,8 +221,6 @@ def setup_web_routes(app):
     @login_required
     def briefs():
         """List all briefs generated for the user."""
-        from flask_wtf import FlaskForm
-        
         page = request.args.get('page', 1, type=int)
         per_page = 10
         
@@ -248,38 +228,22 @@ def setup_web_routes(app):
             Brief.generated_at.desc()
         ).paginate(page=page, per_page=per_page)
         
-        # Create a form for CSRF protection
-        form = FlaskForm()
-        
-        return render_template('briefs.html', briefs=briefs, form=form)
+        return render_template('briefs.html', briefs=briefs)
     
     @app.route('/briefs/<int:brief_id>')
     @login_required
     def brief_detail(brief_id):
         """Show details of a specific brief."""
-        from flask_wtf import FlaskForm
-        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         document = Document.query.get_or_404(brief.document_id)
         
-        # Create a form for CSRF protection
-        form = FlaskForm()
-        
-        return render_template('brief_detail.html', brief=brief, document=document, form=form)
+        return render_template('brief_detail.html', brief=brief, document=document)
         
     @app.route('/briefs/<int:brief_id>/delete', methods=['POST'])
     @login_required
     def delete_brief(brief_id):
         """Delete a brief."""
-        from flask_wtf import FlaskForm
-        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
-        
-        # Create a form to validate CSRF token
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('briefs'))
         
         # Delete the brief
         db.session.delete(brief)
@@ -294,12 +258,6 @@ def setup_web_routes(app):
         """Generate a legal brief from a document."""
         from flask_wtf import FlaskForm
         from wtforms import StringField, TextAreaField
-        
-        # Create a form for CSRF validation
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('document_detail', document_id=document_id))
         
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         
@@ -715,86 +673,3 @@ def setup_web_routes(app):
             except Exception as cleanup_error:
                 logger.error(f"Error cleaning up temporary directory: {str(cleanup_error)}")
                 pass
-                
-    # Onboarding Wizard Routes
-    @app.route('/onboarding')
-    @login_required
-    def onboarding_wizard():
-        """Entry point for the user onboarding wizard."""
-        # Initialize onboarding progress if it doesn't exist
-        progress = OnboardingService.get_progress(current_user)
-            
-        # If user has completed onboarding, redirect to dashboard
-        if progress and progress.onboarding_completed:
-            flash('You have already completed the onboarding process.', 'info')
-            return redirect(url_for('dashboard'))
-            
-        # Render the appropriate step template based on current progress
-        step = progress.current_step if progress else 1
-        return render_template(f'onboarding/step{step}.html', progress=progress)
-        
-    @app.route('/onboarding/next/<int:current_step>', methods=['POST'])
-    @login_required
-    def onboarding_next_step(current_step):
-        """Proceed to the next step in the onboarding wizard."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
-            
-        # Get current progress
-        progress = OnboardingService.get_progress(current_user)
-            
-        # Validate the step
-        if progress.current_step != current_step:
-            flash('Invalid step transition.', 'warning')
-            return redirect(url_for('onboarding_wizard'))
-        
-        try:
-            # Mark this step as completed and move to the next
-            OnboardingService.complete_step(current_user, current_step)
-            
-            # If we've completed all steps, redirect to dashboard
-            if current_step == 5:
-                flash('Congratulations! You have completed the onboarding process.', 'success')
-                return redirect(url_for('dashboard'))
-                
-            # Redirect to the next step
-            return redirect(url_for('onboarding_wizard'))
-        except Exception as e:
-            logger.error(f"Error in onboarding process: {str(e)}")
-            flash('An error occurred during the onboarding process. Please try again.', 'danger')
-            return redirect(url_for('onboarding_wizard'))
-        
-    @app.route('/onboarding/skip', methods=['POST'])
-    @login_required
-    def onboarding_skip():
-        """Skip the onboarding process."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
-            
-        OnboardingService.skip_onboarding(current_user)
-        flash('Onboarding has been skipped. You can access it again from your profile settings if needed.', 'info')
-        return redirect(url_for('dashboard'))
-        
-    @app.route('/onboarding/restart', methods=['POST'])
-    @login_required
-    def onboarding_restart():
-        """Restart the onboarding process."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
-            
-        # Initialize new onboarding progress
-        OnboardingService.initialize_onboarding(current_user)
-        flash('Onboarding process has been restarted.', 'info')
-        return redirect(url_for('onboarding_wizard'))
