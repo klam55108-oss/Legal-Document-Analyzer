@@ -96,26 +96,25 @@ def setup_web_routes(app):
         if form.validate_on_submit():
             logger.info(f"Form validated: {form.username.data}, {form.email.data}")
             
-            # Begin a new transaction scope
-            db.session.begin_nested()
+            # Clear any existing transaction state
+            db.session.rollback()
             
             try:
-                # Create new user
+                # Create new user with a single-step transaction
                 user = User(username=form.username.data, email=form.email.data)
                 user.set_password(form.password.data)
                 
                 logger.info("Adding user to database")
                 db.session.add(user)
-                db.session.flush()  # Flush to get the ID without committing
+                db.session.commit()  # Commit the user first
                 logger.info(f"User created with ID: {user.id}")
                 
-                # Create onboarding progress record in the same transaction
+                # Create onboarding progress record in a separate transaction
+                db.session.begin()  # Start a new transaction
                 from models import OnboardingProgress
-                progress = OnboardingProgress(user=user)
+                progress = OnboardingProgress(user_id=user.id)  # Use user ID directly
                 db.session.add(progress)
-                
-                # Commit the entire transaction
-                db.session.commit()
+                db.session.commit()  # Commit the onboarding progress
                 logger.info(f"Completed registration for user: {user.id}")
                 
                 flash('Registration successful! You can now log in.', 'success')

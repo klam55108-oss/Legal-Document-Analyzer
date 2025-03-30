@@ -160,6 +160,9 @@ def setup_engine_event_listeners(engine):
         if branch:
             # Connection is a sub-connection of an existing connection
             return
+        
+        # Don't leave connections in a transaction
+        conn.execute(sqlalchemy.text("ROLLBACK"))
             
         # Check for broken connections
         if not check_connection(conn):

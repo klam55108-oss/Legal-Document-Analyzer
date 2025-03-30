@@ -160,10 +160,10 @@ def create_app():
         @login_manager.user_loader
         def load_user(user_id):
             try:
-                # Explicitly begin a new transaction just for this operation
-                with db.session.begin_nested():
-                    user = User.query.get(int(user_id))
-                    return user
+                # Create a fresh session just for this operation
+                user = User.query.get(int(user_id))
+                db.session.commit()  # Commit the transaction to avoid lingering state
+                return user
             except Exception as e:
                 # Log the error and handle gracefully
                 logger.error(f"Error loading user {user_id}: {str(e)}")
