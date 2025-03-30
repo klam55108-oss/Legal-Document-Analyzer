@@ -8,6 +8,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import logging
 from forms import LoginForm, RegistrationForm, RequestPasswordResetForm, ResetPasswordForm
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 from services.email_service import email_service
 from datetime import datetime
 from services.brief_generator import generate_brief as brief_generator_service
@@ -22,8 +26,6 @@ from services.knowledge_service import (
 )
 from services.onboarding_service import OnboardingService
 
-logger = logging.getLogger(__name__)
-
 def setup_web_routes(app):
     @app.route('/')
     def index():
@@ -34,18 +36,36 @@ def setup_web_routes(app):
     def web_login():
         """Handle user login."""
         if current_user.is_authenticated:
+            logger.info(f"Already authenticated user: {current_user.username}")
             return redirect(url_for('dashboard'))
             
         form = LoginForm()
+        logger.info(f"Login form received: {request.method}")
+        
         if form.validate_on_submit():
+            logger.info(f"Form validated, attempting login for user: {form.username.data}")
             try:
                 user = User.query.filter_by(username=form.username.data).first()
+                logger.info(f"User found: {user is not None}")
                 
                 if user and user.check_password(form.password.data):
+                    logger.info(f"Password validated for user: {user.username}")
                     login_user(user, remember=form.remember.data)
+                    logger.info(f"User logged in successfully: {user.id}")
+                    
+                    # Check if user has onboarding progress
+                    from models import OnboardingProgress
+                    progress = OnboardingProgress.query.filter_by(user_id=user.id).first()
+                    if not progress:
+                        logger.info(f"Creating onboarding progress for existing user: {user.id}")
+                        progress = OnboardingProgress(user=user)
+                        db.session.add(progress)
+                        db.session.commit()
+                    
                     next_page = request.args.get('next')
                     return redirect(next_page or url_for('dashboard'))
                 else:
+                    logger.warning(f"Invalid login attempt for username: {form.username.data}")
                     flash('Invalid username or password', 'danger')
             except Exception as e:
                 db.session.rollback()
@@ -61,14 +81,26 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
         
         form = RegistrationForm()
+        logger.info(f"Registration form received: {request.method}")
+        
         if form.validate_on_submit():
+            logger.info(f"Form validated: {form.username.data}, {form.email.data}")
             try:
                 # Create new user
                 user = User(username=form.username.data, email=form.email.data)
                 user.set_password(form.password.data)
                 
+                logger.info("Adding user to database")
                 db.session.add(user)
                 db.session.commit()
+                logger.info(f"User created with ID: {user.id}")
+                
+                # Create onboarding progress record
+                from models import OnboardingProgress
+                progress = OnboardingProgress(user=user)
+                db.session.add(progress)
+                db.session.commit()
+                logger.info(f"Created onboarding progress for user: {user.id}")
                 
                 flash('Registration successful! You can now log in.', 'success')
                 return redirect(url_for('web_login'))
