@@ -100,14 +100,29 @@
             </div>
             {% elif not document.processed %}
             <div class="alert alert-warning">
-                <h5><i class="fas fa-cog fa-spin me-2"></i> Document Processing</h5>
-                <p>Your document is currently being processed. This may take a few minutes depending on the document size and complexity.</p>
+                <h5><i class="fas fa-exclamation-circle me-2"></i> Document Ready for Analysis</h5>
+                <p>Your document has been uploaded successfully but has not been analyzed yet. Click the button below to begin document analysis.</p>
+                <p class="mt-2 mb-0">
+                    <form action="{{ url_for('analyze_document_route', document_id=document.id) }}" method="post" style="display: inline;">
+                        {{ form.csrf_token }}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-microscope me-1"></i> Analyze Document
+                        </button>
+                    </form>
+                    <small class="ms-3">This will extract statutes, analyze the document content, and prepare it for brief generation. This may take a few minutes for large documents.</small>
+                </p>
+            </div>
+            
+            <!-- Hidden processing status, displayed by JavaScript when analysis starts -->
+            <div class="alert alert-info d-none" id="processingStatus">
+                <h5><i class="fas fa-cog fa-spin me-2"></i> Document Analysis in Progress</h5>
+                <p>Your document is currently being analyzed. This may take a few minutes depending on the document size and complexity.</p>
                 <div class="progress mt-2">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 75%"></div>
                 </div>
                 <p class="mt-2 mb-0">
                     <small>Refresh the page to check the latest status.</small>
-                    <a href="{{ url_for('document_detail', document_id=document.id) }}" class="btn btn-warning btn-sm ms-2">
+                    <a href="{{ url_for('document_detail', document_id=document.id) }}" class="btn btn-info btn-sm ms-2">
                         <i class="fas fa-sync-alt me-1"></i> Refresh
                     </a>
                 </p>
@@ -282,6 +297,28 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle Analyze Document button
+        const analyzeForm = document.querySelector('form[action*="analyze"]');
+        if (analyzeForm) {
+            analyzeForm.addEventListener('submit', function(e) {
+                // Hide the original alert and show processing status
+                const readyAlert = document.querySelector('.alert-warning');
+                const processingAlert = document.getElementById('processingStatus');
+                
+                if (readyAlert && processingAlert) {
+                    readyAlert.classList.add('d-none');
+                    processingAlert.classList.remove('d-none');
+                }
+                
+                // Disable the submit button to prevent multiple submissions
+                const submitButton = this.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Analyzing...';
+                }
+            });
+        }
+        
         // Verify all statutes button
         const verifyAllButton = document.getElementById('verifyAllStatutes');
         if (verifyAllButton) {

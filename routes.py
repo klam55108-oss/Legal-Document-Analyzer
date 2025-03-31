@@ -117,7 +117,7 @@ def setup_web_routes(app):
                 FileRequired(),
                 FileAllowed(['pdf', 'doc', 'docx', 'txt', 'rtf'], 'Allowed formats: PDF, DOCX, DOC, TXT, RTF')
             ])
-            submit = SubmitField('Upload & Analyze')
+            submit = SubmitField('Upload Document')
         
         page = request.args.get('page', 1, type=int)
         per_page = 10
@@ -160,58 +160,9 @@ def setup_web_routes(app):
                 db.session.add(new_document)
                 db.session.commit()
                 
-                # Process document in background or queue
-                try:
-                    import traceback
-                    from services.text_analysis import analyze_document
-                    from services.document_parser import document_parser
-                    
-                    logger.info(f"Starting document parsing for {file_path}")
-                    # Parse document text
-                    try:
-                        document_text = document_parser.parse_document(file_path)
-                        logger.info(f"Document parsed successfully, text length: {len(document_text)}")
-                    except Exception as parse_error:
-                        logger.error(f"Error parsing document: {str(parse_error)}")
-                        logger.error(f"Traceback: {traceback.format_exc()}")
-                        raise parse_error
-                    
-                    logger.info(f"Starting document analysis for document ID: {new_document.id}")
-                    # Analyze the document content
-                    try:
-                        analysis_results = analyze_document(document_text, new_document.id)
-                        logger.info(f"Document analysis completed successfully")
-                    except Exception as analysis_error:
-                        logger.error(f"Error analyzing document: {str(analysis_error)}")
-                        logger.error(f"Traceback: {traceback.format_exc()}")
-                        raise analysis_error
-                    
-                    # Extract statutes separately using OpenAI if available
-                    try:
-                        logger.info(f"Starting statute extraction with OpenAI")
-                        from services.openai_document import analyze_document_for_statutes
-                        statutes = analyze_document_for_statutes(document_text)
-                        if statutes and len(statutes) > 0:
-                            logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
-                            from services.text_analysis import store_statutes
-                            store_statutes(statutes, new_document.id)
-                    except Exception as e:
-                        logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
-                        logger.warning(f"Traceback: {traceback.format_exc()}")
-                    
-                    # Mark document as processed
-                    new_document.processed = True
-                    db.session.commit()
-                    logger.info(f"Document ID {new_document.id} marked as processed successfully")
-                    
-                    flash('Document uploaded and processed successfully', 'success')
-                except Exception as e:
-                    logger.error(f"Error processing document: {str(e)}")
-                    new_document.processing_error = str(e)
-                    db.session.commit()
-                    flash('Document uploaded but could not be processed', 'warning')
-                
-                return redirect(url_for('documents'))
+                # Document has been saved but not processed yet
+                flash('Document uploaded successfully. Please proceed to analyze the document.', 'success')
+                return redirect(url_for('document_detail', document_id=new_document.id))
             else:
                 flash('Invalid file type. Allowed types: PDF, DOCX, DOC, TXT, RTF', 'danger')
                 return redirect(request.url)
@@ -240,6 +191,72 @@ def setup_web_routes(app):
                               briefs=briefs,
                               statutes=statutes,
                               form=form)
+                              
+    @app.route('/documents/<int:document_id>/analyze', methods=['POST'])
+    @login_required
+    def analyze_document_route(document_id):
+        """Analyze a document that has been uploaded but not processed."""
+        import traceback
+        from services.text_analysis import analyze_document
+        from services.document_parser import document_parser
+        
+        logger = logging.getLogger(__name__)
+        
+        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
+        
+        # Don't re-process if already processed
+        if document.processed:
+            flash('Document has already been analyzed', 'info')
+            return redirect(url_for('document_detail', document_id=document.id))
+        
+        try:
+            logger.info(f"Starting document parsing for {document.file_path}")
+            # Parse document text
+            try:
+                document_text = document_parser.parse_document(document.file_path)
+                logger.info(f"Document parsed successfully, text length: {len(document_text)}")
+            except Exception as parse_error:
+                logger.error(f"Error parsing document: {str(parse_error)}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise parse_error
+            
+            logger.info(f"Starting document analysis for document ID: {document.id}")
+            # Analyze the document content
+            try:
+                analysis_results = analyze_document(document_text, document.id)
+                logger.info(f"Document analysis completed successfully")
+            except Exception as analysis_error:
+                logger.error(f"Error analyzing document: {str(analysis_error)}")
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                raise analysis_error
+            
+            # Extract statutes separately using OpenAI if available
+            try:
+                logger.info(f"Starting statute extraction with OpenAI")
+                from services.openai_document import analyze_document_for_statutes
+                statutes = analyze_document_for_statutes(document_text)
+                if statutes and len(statutes) > 0:
+                    logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
+                    from services.text_analysis import store_statutes
+                    store_statutes(statutes, document.id)
+            except Exception as e:
+                logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+                logger.warning(f"Traceback: {traceback.format_exc()}")
+            
+            # Mark document as processed
+            document.processed = True
+            document.processing_error = None  # Clear any previous error
+            db.session.commit()
+            logger.info(f"Document ID {document.id} marked as processed successfully")
+            
+            flash('Document analyzed successfully', 'success')
+        except Exception as e:
+            logger.error(f"Error processing document: {str(e)}")
+            document.processing_error = str(e)
+            db.session.commit()
+            flash(f'Error analyzing document: {str(e)}', 'danger')
+        
+        return redirect(url_for('document_detail', document_id=document.id))
                               
     @app.route('/documents/<int:document_id>/delete', methods=['POST'])
     @login_required
