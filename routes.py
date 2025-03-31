@@ -36,7 +36,7 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
             
         form = LoginForm()
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate():
             user = User.query.filter_by(email=form.email.data).first()
             
             if user and user.check_password(form.password.data):
@@ -55,7 +55,7 @@ def setup_web_routes(app):
             return redirect(url_for('dashboard'))
         
         form = RegistrationForm()
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate():
             # Create new user
             user = User(username=form.username.data, email=form.email.data)
             user.set_password(form.password.data)
@@ -125,7 +125,7 @@ def setup_web_routes(app):
         # Create a fresh form instance that's properly bound to the request
         form = UploadForm()
         
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate():
             logger.info("Processing document upload request")
             
             file = form.file.data
@@ -431,7 +431,7 @@ def setup_web_routes(app):
         
         form = KnowledgeEntryForm()
         
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate():
             # Process tags
             tag_names = []
             if form.tags.data:
@@ -508,7 +508,7 @@ def setup_web_routes(app):
         if request.method == 'GET':
             form.tags.data = ','.join([tag.name for tag in entry.tags])
         
-        if form.validate_on_submit():
+        if request.method == 'POST' and form.validate():
             # Process tags
             tag_names = []
             if form.tags.data:
