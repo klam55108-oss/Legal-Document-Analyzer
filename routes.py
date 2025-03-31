@@ -125,15 +125,10 @@ def setup_web_routes(app):
         # Create a fresh form instance that's properly bound to the request
         form = UploadForm()
         
-        if request.method == 'POST':
+        if request.method == 'POST' and form.validate():
             logger.info("Processing document upload request")
             
-            # Skip CSRF token validation for this route
-            if 'file' not in request.files:
-                flash('No file part in the request', 'danger')
-                return redirect(request.url)
-                
-            file = request.files['file']
+            file = form.file.data
             
             if file.filename == '':
                 flash('No file selected', 'danger')
