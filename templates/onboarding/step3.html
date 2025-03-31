@@ -1,0 +1,112 @@
+{% extends "onboarding/base.html" %}
+
+{% set step_title = "Document Analysis" %}
+
+{% block step_content %}
+<div class="text-center mb-4">
+  <div class="feature-icon mx-auto mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  </div>
+  <h2>Document Analysis</h2>
+  <p class="lead">Unlocking insights with AI</p>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Sample Document Analysis</h5>
+    <p>Our system has analyzed the sample document. Here's what we found:</p>
+    
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <div class="card h-100 mb-3">
+          <div class="card-header bg-primary text-white">
+            Document Details
+          </div>
+          <div class="card-body">
+            <dl class="row">
+              <dt class="col-sm-6">Document Type:</dt>
+              <dd class="col-sm-6">Consulting Agreement</dd>
+              
+              <dt class="col-sm-6">Parties:</dt>
+              <dd class="col-sm-6">XYZ Corporation, ABC Consulting LLC</dd>
+              
+              <dt class="col-sm-6">Date:</dt>
+              <dd class="col-sm-6">March 30, 2025</dd>
+              
+              <dt class="col-sm-6">Document Length:</dt>
+              <dd class="col-sm-6">10 pages</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card h-100 mb-3">
+          <div class="card-header bg-info text-white">
+            Key Legal Concepts
+          </div>
+          <div class="card-body">
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Confidentiality
+                <span class="badge bg-primary rounded-pill">96%</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Intellectual Property
+                <span class="badge bg-primary rounded-pill">94%</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Indemnification
+                <span class="badge bg-primary rounded-pill">89%</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                Limitation of Liability
+                <span class="badge bg-primary rounded-pill">87%</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-4">
+      <h5>Identified References</h5>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Reference</th>
+            <th>Verification</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Statute</td>
+            <td>California Civil Code § 1550</td>
+            <td><span class="badge bg-success">Verified</span></td>
+          </tr>
+          <tr>
+            <td>Statute</td>
+            <td>Delaware General Corporation Law § 141</td>
+            <td><span class="badge bg-success">Verified</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <h5 class="alert-heading">What's Next?</h5>
+  <p>Now that we've analyzed the document, the next step is to generate a legal brief that summarizes key points and provides recommendations.</p>
+  <hr>
+  <p class="mb-0">Click "Continue" to learn about brief generation.</p>
+</div>
+{% endblock %}
+
+{% block step_actions %}
+<form action="{{ url_for('onboarding_next_step', current_step=3) }}" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-primary">Continue <i class="fas fa-arrow-right ms-1"></i></button>
+</form>
+{% endblock %}

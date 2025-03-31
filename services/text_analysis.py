@@ -519,9 +519,9 @@ def store_statutes(statutes, document_id):
                 statute = Statute(
                     document_id=document_id,
                     reference=reference,
-                    context=context,
-                    validated=False,
-                    created_at=datetime.utcnow()
+                    content=context,
+                    is_current=True,  # Default to true until validation
+                    verified_at=datetime.utcnow()
                 )
                 db.session.add(statute)
                 db.session.commit()

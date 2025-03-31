@@ -1,0 +1,58 @@
+{% extends "onboarding/base.html" %}
+
+{% set step_title = "Document Upload" %}
+
+{% block step_content %}
+<div class="text-center mb-4">
+  <div class="feature-icon mx-auto mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-upload"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+  </div>
+  <h2>Document Upload</h2>
+  <p class="lead">The first step in your analysis journey</p>
+</div>
+
+<div class="row mb-4">
+  <div class="col-lg-8 mx-auto">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Upload Process</h5>
+        <div class="mb-4">
+          <p>The document upload process in LegalDataInsights involves several automated steps:</p>
+          <ol class="text-start">
+            <li class="mb-2">Document is securely uploaded to our system</li>
+            <li class="mb-2">Text is extracted and processed</li>
+            <li class="mb-2">AI analysis identifies key legal concepts</li>
+            <li class="mb-2">Relevant statutes are automatically identified</li>
+            <li class="mb-2">Document is indexed for later reference</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="alert alert-info">
+  <h5 class="alert-heading">For This Tutorial</h5>
+  <p>We've created a sample legal document for you to use in this tutorial. In the next step, we'll show you how the document analysis works with this sample.</p>
+  <hr>
+  <p class="mb-0">Click "Continue" to analyze the sample document.</p>
+</div>
+
+<div class="mt-4">
+  <h5>Supported File Types</h5>
+  <div class="d-flex justify-content-center gap-3 mt-3">
+    <span class="badge bg-secondary p-2">PDF</span>
+    <span class="badge bg-secondary p-2">DOCX</span>
+    <span class="badge bg-secondary p-2">DOC</span>
+    <span class="badge bg-secondary p-2">TXT</span>
+    <span class="badge bg-secondary p-2">RTF</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block step_actions %}
+<form action="{{ url_for('onboarding_next_step', current_step=2) }}" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-primary">Continue <i class="fas fa-arrow-right ms-1"></i></button>
+</form>
+{% endblock %}

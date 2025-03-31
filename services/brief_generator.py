@@ -20,6 +20,8 @@ def generate_brief(document, custom_title=None, focus_areas=None):
         Brief: The generated brief model instance
     """
     import traceback
+    # Import needed dependencies
+    from app import app, db
     
     if not document:
         logger.error("Cannot generate brief: document is None")
@@ -27,64 +29,76 @@ def generate_brief(document, custom_title=None, focus_areas=None):
         
     logger.info(f"Generating brief for document ID: {document.id}, file: {document.filename}")
     
-    try:
-        # Check if file exists
-        if not os.path.exists(document.file_path):
-            logger.error(f"Document file not found: {document.file_path}")
-            raise ValueError(f"Document file not found: {document.file_path}")
-        
-        # Parse the document text
-        logger.info(f"Parsing document from path: {document.file_path}")
-        from services.document_parser import parse_document
-        document_text = parse_document(document.file_path)
-        
-        # Check if we got valid text
-        if not document_text:
-            logger.error("Document parser returned empty content")
-            raise ValueError("Failed to extract text from document")
-        
-        # Check if we got a dictionary or string
-        if isinstance(document_text, dict):
-            # Extract the full text from the enhanced document
-            document_text = document_text.get("full_text", "")
-            if not document_text:
-                logger.error("No full_text found in document_text dictionary")
-                raise ValueError("No full_text found in parsed document")
-        
-        logger.info(f"Document text extracted: {len(document_text)} characters")
-        
-        # Generate the brief content
-        logger.info("Creating brief content...")
-        title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
-        
-        if not content:
-            logger.error("Brief generation produced empty content")
-            raise ValueError("Generated brief content is empty")
+    # Use application context to ensure all database operations are performed within scope
+    with app.app_context():
+        try:
+            # Check if file exists
+            if not os.path.exists(document.file_path):
+                logger.error(f"Document file not found: {document.file_path}")
+                raise ValueError(f"Document file not found: {document.file_path}")
             
-        logger.info(f"Brief content created. Title: {title}, Content length: {len(content)}")
-        
-        # Create the brief in the database
-        logger.info("Saving brief to database...")
-        from app import db
-        brief = Brief(
-            title=title,
-            content=content,
-            summary=summary,
-            document_id=document.id,
-            user_id=document.user_id,
-            generated_at=datetime.utcnow()
-        )
-        
-        db.session.add(brief)
-        db.session.commit()
-        
-        logger.info(f"Brief generated successfully: {brief.id}")
-        return brief
-        
-    except Exception as e:
-        logger.error(f"Error generating brief: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise ValueError(f"Failed to generate brief: {str(e)}")
+            # Parse the document text
+            logger.info(f"Parsing document from path: {document.file_path}")
+            from services.document_parser import document_parser
+            document_text = document_parser.parse_document(document.file_path)
+            
+            # Check if we got valid text
+            if not document_text:
+                logger.error("Document parser returned empty content")
+                raise ValueError("Failed to extract text from document")
+            
+            # Check if we got a dictionary or string
+            if isinstance(document_text, dict):
+                # Extract the full text from the enhanced document
+                document_text = document_text.get("full_text", "")
+                if not document_text:
+                    logger.error("No full_text found in document_text dictionary")
+                    raise ValueError("No full_text found in parsed document")
+            
+            logger.info(f"Document text extracted: {len(document_text)} characters")
+            
+            # Generate the brief content
+            logger.info("Creating brief content...")
+            title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
+            
+            if not content:
+                logger.error("Brief generation produced empty content")
+                raise ValueError("Generated brief content is empty")
+                
+            logger.info(f"Brief content created. Title: {title}, Content length: {len(content)}")
+            
+            # Create the brief in the database
+            logger.info("Saving brief to database...")
+            from models import Brief
+            
+            # Create the brief instance
+            brief = Brief(
+                title=title,
+                content=content,
+                summary=summary,
+                document_id=document.id,
+                user_id=document.user_id,
+                generated_at=datetime.utcnow()
+            )
+            
+            # Add to database in a fresh transaction
+            try:
+                db.session.add(brief)
+                db.session.commit()
+                logger.info(f"Brief generated and saved successfully: {brief.id}")
+            except Exception as db_error:
+                db.session.rollback()
+                logger.error(f"Database error saving brief: {str(db_error)}")
+                logger.error(f"DB Error traceback: {traceback.format_exc()}")
+                raise ValueError(f"Database error: {str(db_error)}")
+            
+            return brief
+            
+        except Exception as e:
+            logger.error(f"Error generating brief: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Re-raise the error to be handled by the calling function
+            raise ValueError(f"Failed to generate brief: {str(e)}")
 
 def create_brief_content(document_text, document, custom_title=None, focus_areas=None):
     """
@@ -138,7 +152,8 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             content, summary = generate_brief_with_openai(
                 document_text=document_text,
                 title=title.replace('Brief: ', ''),
-                focus_areas=focus_areas
+                focus_areas=focus_areas,
+                document_id=document.id
             )
             
             logger.info(f"OpenAI brief generation successful for document {document.id}")
@@ -395,28 +410,30 @@ def generate_conclusion(text):
 
 def generate_statutes_section(document):
     """Generate a section with statute references."""
-    from app import db
+    from app import app, db
     from models import Statute
     
-    statutes = Statute.query.filter_by(document_id=document.id).all()
-    
-    if not statutes:
-        return None
-    
-    statute_section = "Referenced Statutes and Regulations:\n\n"
-    
-    for statute in statutes:
-        status = "CURRENT" if statute.is_current else "OUTDATED"
-        statute_section += f"- {statute.reference} [{status}]\n"
+    # Use application context to ensure DB operations happen within scope
+    with app.app_context():
+        statutes = Statute.query.filter_by(document_id=document.id).all()
         
-        if statute.content:
-            # Add a snippet of the context if available
-            context = statute.content
-            if len(context) > 200:
-                context = context[:200] + "..."
-            statute_section += f"  Context: {context}\n"
-    
-    return statute_section
+        if not statutes:
+            return None
+        
+        statute_section = "Referenced Statutes and Regulations:\n\n"
+        
+        for statute in statutes:
+            status = "CURRENT" if statute.is_current else "OUTDATED"
+            statute_section += f"- {statute.reference} [{status}]\n"
+            
+            if statute.content:
+                # Add a snippet of the context if available
+                context = statute.content
+                if len(context) > 200:
+                    context = context[:200] + "..."
+                statute_section += f"  Context: {context}\n"
+        
+        return statute_section
 
 def format_brief_content(title, sections):
     """Format the brief content with all sections."""

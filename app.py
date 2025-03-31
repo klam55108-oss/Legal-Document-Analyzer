@@ -34,6 +34,10 @@ def create_app():
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_timeout": 30,
+        "pool_reset_on_return": "rollback",  # Always rollback incomplete transactions on connection return
     }
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     
@@ -47,6 +51,14 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'web_login'
     csrf.init_app(app)
+    
+    # Add database connection cleanup
+    @app.teardown_request
+    def shutdown_session(exception=None):
+        """Ensure the database session is closed and cleaned up after each request."""
+        if exception:
+            db.session.rollback()
+        db.session.remove()
     
     # Create RESTful API
     api = Api(app)
