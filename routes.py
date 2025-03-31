@@ -125,7 +125,7 @@ def setup_web_routes(app):
         # Create a fresh form instance that's properly bound to the request
         form = UploadForm()
         
-        if request.method == 'POST' and form.validate():
+        if form.validate_on_submit():
             logger.info("Processing document upload request")
             
             file = form.file.data
@@ -433,7 +433,9 @@ def setup_web_routes(app):
         
         if form.validate_on_submit():
             # Process tags
-            tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
+            tag_names = []
+            if form.tags.data:
+                tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
             
             # Create the knowledge entry
             try:
@@ -508,7 +510,9 @@ def setup_web_routes(app):
         
         if form.validate_on_submit():
             # Process tags
-            tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
+            tag_names = []
+            if form.tags.data:
+                tag_names = [tag.strip() for tag in form.tags.data.split(',') if tag.strip()]
             
             # Update the entry
             try:
