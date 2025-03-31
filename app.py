@@ -8,7 +8,6 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from flask_restful import Api
 from flask_login import LoginManager
-from flask_wtf.csrf import CSRFProtect
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +20,6 @@ class Base(DeclarativeBase):
 # Initialize extensions
 db = SQLAlchemy(model_class=Base)
 login_manager = LoginManager()
-csrf = CSRFProtect()
 
 def create_app():
     """Create and configure the Flask application."""
@@ -50,7 +48,6 @@ def create_app():
     db.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'web_login'
-    csrf.init_app(app)
     
     # Add database connection cleanup
     @app.teardown_request

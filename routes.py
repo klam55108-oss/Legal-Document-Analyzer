@@ -104,17 +104,14 @@ def setup_web_routes(app):
     @login_required
     def documents():
         """List all documents uploaded by the user."""
-        from flask_wtf import FlaskForm
         from flask_wtf.file import FileField, FileRequired, FileAllowed
         from wtforms import SubmitField
+        from forms import CSRFDisabledForm
         import logging
         
         logger = logging.getLogger(__name__)
         
-        class UploadForm(FlaskForm):
-            # Disable CSRF token check for uploads
-            class Meta:
-                csrf = False
+        class UploadForm(CSRFDisabledForm):
                 
             file = FileField('Document', validators=[
                 FileRequired(),
@@ -216,14 +213,14 @@ def setup_web_routes(app):
     @login_required
     def document_detail(document_id):
         """Show details of a specific document."""
-        from flask_wtf import FlaskForm
+        from forms import CSRFDisabledForm
         
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         briefs = Brief.query.filter_by(document_id=document.id).all()
         statutes = Statute.query.filter_by(document_id=document.id).all()
         
-        # Create a simple form for CSRF protection
-        form = FlaskForm()
+        # Create a simple form without CSRF
+        form = CSRFDisabledForm()
         
         return render_template('document_detail.html', 
                               document=document, 
@@ -259,7 +256,7 @@ def setup_web_routes(app):
     @login_required
     def briefs():
         """List all briefs generated for the user."""
-        from flask_wtf import FlaskForm
+        from forms import CSRFDisabledForm
         
         page = request.args.get('page', 1, type=int)
         per_page = 10
@@ -268,8 +265,8 @@ def setup_web_routes(app):
             Brief.generated_at.desc()
         ).paginate(page=page, per_page=per_page)
         
-        # Create a form for CSRF protection
-        form = FlaskForm()
+        # Create a form without CSRF
+        form = CSRFDisabledForm()
         
         return render_template('briefs.html', briefs=briefs, form=form)
     
@@ -277,13 +274,13 @@ def setup_web_routes(app):
     @login_required
     def brief_detail(brief_id):
         """Show details of a specific brief."""
-        from flask_wtf import FlaskForm
+        from forms import CSRFDisabledForm
         
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         document = Document.query.get_or_404(brief.document_id)
         
-        # Create a form for CSRF protection
-        form = FlaskForm()
+        # Create a form without CSRF
+        form = CSRFDisabledForm()
         
         return render_template('brief_detail.html', brief=brief, document=document, form=form)
         
@@ -291,15 +288,7 @@ def setup_web_routes(app):
     @login_required
     def delete_brief(brief_id):
         """Delete a brief."""
-        from flask_wtf import FlaskForm
-        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
-        
-        # Create a form to validate CSRF token
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('briefs'))
         
         # Delete the brief
         db.session.delete(brief)
@@ -312,15 +301,6 @@ def setup_web_routes(app):
     @login_required
     def generate_brief(document_id):
         """Generate a legal brief from a document."""
-        from flask_wtf import FlaskForm
-        from wtforms import StringField, TextAreaField
-        
-        # Create a form for CSRF validation
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('document_detail', document_id=document_id))
-        
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         
         # Ensure document is processed
@@ -764,12 +744,6 @@ def setup_web_routes(app):
     @login_required
     def onboarding_next_step(current_step):
         """Proceed to the next step in the onboarding wizard."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
         
         try:
             # Get current progress - this method now has built-in transaction handling
@@ -800,12 +774,6 @@ def setup_web_routes(app):
     @login_required
     def onboarding_skip():
         """Skip the onboarding process."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
         
         try:    
             OnboardingService.skip_onboarding(current_user)
@@ -821,12 +789,6 @@ def setup_web_routes(app):
     @login_required
     def onboarding_restart():
         """Restart the onboarding process."""
-        # Create a form for CSRF validation
-        from flask_wtf import FlaskForm
-        form = FlaskForm()
-        if not form.validate_on_submit():
-            flash('CSRF token missing or invalid', 'danger')
-            return redirect(url_for('onboarding_wizard'))
         
         try:    
             # Initialize new onboarding progress

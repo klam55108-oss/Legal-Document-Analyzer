@@ -3,13 +3,17 @@ from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextA
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 from models import User
 
-class LoginForm(FlaskForm):
+class CSRFDisabledForm(FlaskForm):
+    class Meta:
+        csrf = False
+
+class LoginForm(CSRFDisabledForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
     remember = BooleanField('Remember Me')
     submit = SubmitField('Login')
 
-class RegistrationForm(FlaskForm):
+class RegistrationForm(CSRFDisabledForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=3, max=50)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=8)])
@@ -28,7 +32,7 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('That username is already taken. Please choose a different one.')
             
-class KnowledgeEntryForm(FlaskForm):
+class KnowledgeEntryForm(CSRFDisabledForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=255)])
     content = TextAreaField('Content', validators=[DataRequired()])
     source_type = SelectField('Source Type', choices=[
@@ -42,7 +46,7 @@ class KnowledgeEntryForm(FlaskForm):
     tags = StringField('Tags (comma separated)')
     submit = SubmitField('Save Knowledge Entry')
 
-class KnowledgeSearchForm(FlaskForm):
+class KnowledgeSearchForm(CSRFDisabledForm):
     query = StringField('Search Knowledge Base', validators=[Length(max=100)])
     tags = SelectMultipleField('Filter by Tags')
     submit = SubmitField('Search')
