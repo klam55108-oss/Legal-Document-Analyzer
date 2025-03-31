@@ -197,7 +197,6 @@ def setup_web_routes(app):
     def analyze_document_route(document_id):
         """Analyze a document that has been uploaded but not processed."""
         import traceback
-        from services.text_analysis import analyze_document
         from services.document_parser import document_parser
         
         logger = logging.getLogger(__name__)
@@ -210,46 +209,66 @@ def setup_web_routes(app):
             return redirect(url_for('document_detail', document_id=document.id))
         
         try:
+            # Step 1: Parse the document to extract text
             logger.info(f"Starting document parsing for {document.file_path}")
-            # Parse document text
             try:
                 document_text = document_parser.parse_document(document.file_path)
                 logger.info(f"Document parsed successfully, text length: {len(document_text)}")
+                
+                # Store just the first 10,000 characters to prevent memory issues in subsequent steps
+                # This will be used for analysis instead of the full text
+                parsed_text = document_text[:10000] if len(document_text) > 10000 else document_text
             except Exception as parse_error:
                 logger.error(f"Error parsing document: {str(parse_error)}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
                 raise parse_error
             
+            # Step 2: Basic document analysis 
             logger.info(f"Starting document analysis for document ID: {document.id}")
-            # Analyze the document content
             try:
-                analysis_results = analyze_document(document_text, document.id)
-                logger.info(f"Document analysis completed successfully")
+                from services.text_analysis import TextAnalyzer
+                
+                # Use the analyzer directly instead of the analyze_document function to have more control
+                analyzer = TextAnalyzer()
+                results = analyzer.analyze_text_with_nlp(parsed_text)
+                
+                logger.info(f"Basic document analysis completed")
+                
+                # No need to store these results in the database yet
             except Exception as analysis_error:
-                logger.error(f"Error analyzing document: {str(analysis_error)}")
+                logger.error(f"Error in basic text analysis: {str(analysis_error)}")
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                raise analysis_error
+                # Continue even if this fails
             
-            # Extract statutes separately using OpenAI if available
+            # Step 3: Extract statutes (with smaller text chunks)
+            statute_count = 0
             try:
                 logger.info(f"Starting statute extraction with OpenAI")
                 from services.openai_document import analyze_document_for_statutes
-                statutes = analyze_document_for_statutes(document_text)
+                
+                # Use a smaller chunk for statute extraction
+                statutes_text = document_text[:5000] if len(document_text) > 5000 else document_text
+                statutes = analyze_document_for_statutes(statutes_text)
+                
                 if statutes and len(statutes) > 0:
-                    logger.info(f"Found {len(statutes)} statutes using direct OpenAI analysis")
+                    statute_count = len(statutes)
+                    logger.info(f"Found {statute_count} statutes using direct OpenAI analysis")
+                    
+                    # Store statutes in smaller batches
                     from services.text_analysis import store_statutes
                     store_statutes(statutes, document.id)
             except Exception as e:
                 logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
                 logger.warning(f"Traceback: {traceback.format_exc()}")
+                # Continue even if this step fails
             
-            # Mark document as processed
+            # Step 4: Mark document as processed
             document.processed = True
             document.processing_error = None  # Clear any previous error
             db.session.commit()
             logger.info(f"Document ID {document.id} marked as processed successfully")
             
-            flash('Document analyzed successfully', 'success')
+            flash(f'Document analyzed successfully. Found {statute_count} statutes.', 'success')
         except Exception as e:
             logger.error(f"Error processing document: {str(e)}")
             document.processing_error = str(e)

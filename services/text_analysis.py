@@ -500,7 +500,10 @@ def store_statutes(statutes, document_id):
     
     from app import db
     
-    for statute_info in statutes:
+    # Limit the number of statutes to process to avoid memory issues
+    statutes_to_process = statutes[:10] if len(statutes) > 10 else statutes
+    
+    for statute_info in statutes_to_process:
         reference = statute_info.get('reference')
         context = statute_info.get('context', '')
         
@@ -524,6 +527,7 @@ def store_statutes(statutes, document_id):
                     verified_at=datetime.utcnow()
                 )
                 db.session.add(statute)
+                # Commit after each statute to avoid large transactions
                 db.session.commit()
                 logger.debug(f"Stored statute: {reference} for document {document_id}")
         except Exception as e:

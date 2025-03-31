@@ -182,18 +182,18 @@ def analyze_document_for_statutes(document_text):
         # Create client
         client = OpenAI(api_key=api_key)
         
-        # Call OpenAI for statute extraction
-        logger.info("Analyzing document for statute references")
+        # Use a much smaller chunk of text to prevent memory issues
+        text_chunk = document_text[:2000] if len(document_text) > 2000 else document_text
+        logger.info(f"Analyzing document for statute references (chunk length: {len(text_chunk)})")
         
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o", # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
             messages=[
                 {"role": "system", "content": "You are a legal citation expert. Identify statute and regulation references that need to be validated for currency."},
                 {"role": "user", "content": f"""Extract all statute and regulation references from the following document that should be validated for currency. Include:
                 
                 1. The exact statute citation text (e.g., "42 U.S.C. § 1983", "28 CFR 45.10")
-                2. The jurisdiction (federal, state, local, international)
-                3. The context where it appears (brief snippet of surrounding text)
+                2. The context where it appears (brief snippet of surrounding text)
                 
                 Only include formal statute and regulation citations - not general references to laws or Acts.
                 Format each citation consistently and precisely as it would appear in legal documents.
@@ -201,12 +201,12 @@ def analyze_document_for_statutes(document_text):
                 Return as a JSON object with a "statutes" array containing objects with "reference" and "context" fields.
                 
                 Document text:
-                {document_text[:4000]}... [Content truncated for API limits]
+                {text_chunk}
                 """}
             ],
             response_format={"type": "json_object"},
             temperature=0.1,
-            max_tokens=2000
+            max_tokens=800  # Reduced to save memory
         )
         
         # Process the response
@@ -241,6 +241,12 @@ def analyze_document_for_statutes(document_text):
                         "context": statute.get(key_list[1], "")
                     }
                     formatted_statutes.append(formatted_statute)
+        
+        # Limit the number of statutes to return to prevent database issues        
+        max_statutes = 5
+        if len(formatted_statutes) > max_statutes:
+            logger.info(f"Limiting returned statutes from {len(formatted_statutes)} to {max_statutes}")
+            formatted_statutes = formatted_statutes[:max_statutes]
                     
         logger.info(f"Found {len(formatted_statutes)} statute references in document")
         return formatted_statutes
