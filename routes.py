@@ -162,17 +162,33 @@ def setup_web_routes(app):
                 
                 # Process document in background or queue
                 try:
+                    import traceback
                     from services.text_analysis import analyze_document
                     from services.document_parser import document_parser
                     
+                    logger.info(f"Starting document parsing for {file_path}")
                     # Parse document text
-                    document_text = document_parser.parse_document(file_path)
+                    try:
+                        document_text = document_parser.parse_document(file_path)
+                        logger.info(f"Document parsed successfully, text length: {len(document_text)}")
+                    except Exception as parse_error:
+                        logger.error(f"Error parsing document: {str(parse_error)}")
+                        logger.error(f"Traceback: {traceback.format_exc()}")
+                        raise parse_error
                     
+                    logger.info(f"Starting document analysis for document ID: {new_document.id}")
                     # Analyze the document content
-                    analysis_results = analyze_document(document_text, new_document.id)
+                    try:
+                        analysis_results = analyze_document(document_text, new_document.id)
+                        logger.info(f"Document analysis completed successfully")
+                    except Exception as analysis_error:
+                        logger.error(f"Error analyzing document: {str(analysis_error)}")
+                        logger.error(f"Traceback: {traceback.format_exc()}")
+                        raise analysis_error
                     
                     # Extract statutes separately using OpenAI if available
                     try:
+                        logger.info(f"Starting statute extraction with OpenAI")
                         from services.openai_document import analyze_document_for_statutes
                         statutes = analyze_document_for_statutes(document_text)
                         if statutes and len(statutes) > 0:
@@ -181,10 +197,12 @@ def setup_web_routes(app):
                             store_statutes(statutes, new_document.id)
                     except Exception as e:
                         logger.warning(f"Error extracting statutes with OpenAI: {str(e)}")
+                        logger.warning(f"Traceback: {traceback.format_exc()}")
                     
                     # Mark document as processed
                     new_document.processed = True
                     db.session.commit()
+                    logger.info(f"Document ID {new_document.id} marked as processed successfully")
                     
                     flash('Document uploaded and processed successfully', 'success')
                 except Exception as e:
