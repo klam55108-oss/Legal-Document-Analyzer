@@ -35,10 +35,10 @@ def parse_document_with_openai(document_text, document_type=None, extract_entiti
         # Create client
         client = OpenAI(api_key=api_key)
         
-        # Truncate text if needed
-        if len(document_text) > 12000:
-            logger.info(f"Truncating document text from {len(document_text)} to 12000 chars")
-            text_for_analysis = document_text[:12000] + "... [Content truncated for API limits]"
+        # Truncate text if needed - use a smaller limit to prevent memory issues
+        if len(document_text) > 6000:
+            logger.info(f"Truncating document text from {len(document_text)} to 6000 chars")
+            text_for_analysis = document_text[:6000] + "... [Content truncated for API limits]"
         else:
             text_for_analysis = document_text
         
@@ -140,7 +140,7 @@ def extract_legal_entities_with_openai(document_text):
                 Format the output as a JSON object with arrays for each entity type.
                 
                 Document text:
-                {document_text}
+                {document_text[:4000]}... [Content truncated for API limits]
                 """}
             ],
             response_format={"type": "json_object"},
@@ -201,7 +201,7 @@ def analyze_document_for_statutes(document_text):
                 Return as a JSON object with a "statutes" array containing objects with "reference" and "context" fields.
                 
                 Document text:
-                {document_text[:15000]}
+                {document_text[:4000]}... [Content truncated for API limits]
                 """}
             ],
             response_format={"type": "json_object"},

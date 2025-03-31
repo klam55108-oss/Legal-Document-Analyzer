@@ -137,7 +137,7 @@ class TextAnalyzer:
         if self.nlp:
             try:
                 # Process the document with spaCy
-                doc = self.nlp(text[:100000])  # Limit to prevent memory issues
+                doc = self.nlp(text[:25000])  # Use smaller limit to prevent memory issues
                 
                 # Extract named entities
                 self.extract_entities(doc, results)
@@ -405,7 +405,7 @@ class TextAnalyzer:
         # If no predefined topics were found, try to use NLP to extract topics
         if not top_topics and self.nlp:
             try:
-                doc = self.nlp(text[:10000])  # Process a portion of the text (for performance)
+                doc = self.nlp(text[:5000])  # Use smaller limit to prevent memory issues
                 keywords = {}
                 
                 # Extract noun phrases as potential topics
