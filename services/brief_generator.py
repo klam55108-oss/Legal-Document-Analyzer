@@ -215,10 +215,9 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
         'conclusion': generate_conclusion(document_text)
     }
     
-    # Add statute references
+    # Add statute references - always include this section
     statutes_section = generate_statutes_section(document)
-    if statutes_section:
-        sections['statutes'] = statutes_section
+    sections['statutes'] = statutes_section
     
     # Format the full content
     content = format_brief_content(title, sections)
@@ -457,11 +456,17 @@ def generate_statutes_section(document):
     with app.app_context():
         statutes = Statute.query.filter_by(document_id=document.id).all()
         
-        if not statutes:
-            return None
-        
+        # Always create a statutes section, even if empty
         statute_section = "Referenced Statutes and Regulations:\n\n"
         
+        if not statutes:
+            # Create a placeholder section
+            statute_section += "No specific statute or regulation references were identified in this document.\n\n"
+            statute_section += "Note: Legal analysis may still be applicable even without specific statute references. "
+            statute_section += "Always consult with a qualified legal professional for a comprehensive review."
+            return statute_section
+        
+        # Add each statute to the section
         for statute in statutes:
             status = "CURRENT" if statute.is_current else "OUTDATED"
             statute_section += f"- {statute.reference} [{status}]\n"
@@ -479,24 +484,19 @@ def format_brief_content(title, sections):
     """Format the brief content with all sections."""
     content = f"# {title}\n\n"
     
-    # Add each section with appropriate headings
-    if 'introduction' in sections:
-        content += f"## Introduction\n\n{sections['introduction']}\n\n"
+    # Add each section with appropriate headings (always include all standard sections)
+    content += f"## Introduction\n\n{sections.get('introduction', 'No introduction available for this document.')}\n\n"
     
-    if 'facts' in sections:
-        content += f"## Factual Background\n\n{sections['facts']}\n\n"
+    content += f"## Factual Background\n\n{sections.get('facts', 'No factual background could be extracted from the document.')}\n\n"
     
-    if 'legal_issues' in sections:
-        content += f"## Legal Issues\n\n{sections['legal_issues']}\n\n"
+    content += f"## Legal Issues\n\n{sections.get('legal_issues', 'No specific legal issues could be identified in the document.')}\n\n"
     
-    if 'analysis' in sections:
-        content += f"## Legal Analysis\n\n{sections['analysis']}\n\n"
+    content += f"## Legal Analysis\n\n{sections.get('analysis', 'No legal analysis could be extracted from the document.')}\n\n"
     
-    if 'statutes' in sections:
-        content += f"## Statutory References\n\n{sections['statutes']}\n\n"
+    # Always include statutes section
+    content += f"## Statutory References\n\n{sections.get('statutes', 'No specific statute or regulation references were identified in this document.')}\n\n"
     
-    if 'conclusion' in sections:
-        content += f"## Conclusion\n\n{sections['conclusion']}\n\n"
+    content += f"## Conclusion\n\n{sections.get('conclusion', 'No conclusion could be extracted from the document.')}\n\n"
     
     # Add generation note
     content += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')}. " \
@@ -533,8 +533,10 @@ def generate_summary(sections):
     else:
         summary = "This brief analyzes the legal issues and factual background of the document."
     
-    # Add statute note if applicable
-    if 'statutes' in sections:
+    # Always add statute note 
+    if sections.get('statutes', '').startswith("No specific statute"):
+        summary += " The document does not contain explicit statute references, but legal principles may still apply."
+    else:
         summary += " The document references various statutes which have been validated for currency."
     
     return summary

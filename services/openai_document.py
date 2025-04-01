@@ -189,24 +189,34 @@ def analyze_document_for_statutes(document_text):
         response = client.chat.completions.create(
             model="gpt-4o", # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
             messages=[
-                {"role": "system", "content": "You are a legal citation expert. Identify statute and regulation references that need to be validated for currency."},
-                {"role": "user", "content": f"""Extract all statute and regulation references from the following document that should be validated for currency. Include:
+                {"role": "system", "content": "You are a legal citation expert. Your task is to identify ALL types of statute and regulation references in legal documents, even if they're not in standard citation format."},
+                {"role": "user", "content": f"""Extract ALL statute and regulation references from the following document. Be thorough and creative in finding any possible statute references. Include:
                 
                 1. The exact statute citation text (e.g., "42 U.S.C. § 1983", "28 CFR 45.10")
                 2. The context where it appears (brief snippet of surrounding text)
                 
-                Only include formal statute and regulation citations - not general references to laws or Acts.
-                Format each citation consistently and precisely as it would appear in legal documents.
+                Include ANY references to laws, acts, codes, statutes, regulations, or legal provisions, even if they're not in formal citation format.
+                
+                For example:
+                - "Section 230 of the Communications Decency Act"
+                - "Americans with Disabilities Act"
+                - "California Penal Code"
+                - "Title VII"
+                - "GDPR"
+                - "HIPAA"
+                
+                If there's ANY doubt, include it. It's better to include references that might not be statutes than to miss actual statutes.
                 
                 Return as a JSON object with a "statutes" array containing objects with "reference" and "context" fields.
+                If no statutes are found, return an empty array, NOT null.
                 
                 Document text:
                 {text_chunk}
                 """}
             ],
             response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=800  # Reduced to save memory
+            temperature=0.3, # Higher temperature for more creative detection
+            max_tokens=1000  # Increased to allow for more thorough analysis
         )
         
         # Process the response

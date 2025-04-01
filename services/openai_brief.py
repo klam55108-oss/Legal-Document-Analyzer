@@ -55,7 +55,7 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
             logger.info("No focus areas specified")
         
         # Get statutes if document_id is provided
-        statutes_text = ""
+        statutes_text = "Relevant Statutes and Regulations:\n"
         if document_id:
             try:
                 # Import needed here to avoid circular imports
@@ -66,7 +66,6 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
                 with app.app_context():
                     statutes = Statute.query.filter_by(document_id=document_id).all()
                     if statutes:
-                        statutes_text = "Relevant Statutes and Regulations:\n"
                         for statute in statutes:
                             status = "CURRENT" if statute.is_current else "OUTDATED"
                             statutes_text += f"- {statute.reference} [{status}]\n"
@@ -80,8 +79,15 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
                         
                         logger.info(f"Found {len(statutes)} statutes for document {document_id}")
                     else:
-                        logger.info(f"No statutes found for document {document_id}")
+                        # Provide placeholder text to ensure the section is created
+                        statutes_text += "No specific statute or regulation references were identified in this document.\n"
+                        statutes_text += "Note: Legal analysis may still be applicable even without specific statute references.\n"
+                        statutes_text += "Always consult with a qualified legal professional for a comprehensive review."
+                        logger.info(f"No statutes found for document {document_id}, using placeholder text")
             except Exception as e:
+                # Provide fallback text in case of errors
+                statutes_text += "Unable to retrieve statute references due to a technical issue.\n"
+                statutes_text += "Please review the document for any referenced statutes or regulations."
                 logger.warning(f"Error retrieving statutes: {e}")
         
         # Construct the prompt
@@ -99,7 +105,7 @@ Structure the brief with these sections:
 3. Legal Issues
 4. Legal Analysis
 5. Conclusion
-6. Statutes and Regulations (include this only if statutes are provided above)
+6. Statutes and Regulations (ALWAYS include this section)
 
 Document content: {doc_content}
 
