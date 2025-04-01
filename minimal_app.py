@@ -1,1 +1,0 @@
-print("Hello, this is a minimal Python app test")

@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort, send_file, after_this_request
+from flask import render_template, redirect, url_for, flash, request, jsonify, send_from_directory, abort
 from flask_login import login_required, current_user, login_user, logout_user
 import os
 from app import db
@@ -192,75 +192,6 @@ def setup_web_routes(app):
                               statutes=statutes,
                               form=form)
                               
-    @app.route('/documents/<int:document_id>/download-pdf')
-    @login_required
-    def download_document_pdf(document_id):
-        """Download a document in PDF format."""
-        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
-        
-        # Check if the document is a PDF
-        if document.original_filename.lower().endswith('.pdf'):
-            # Return the original PDF file
-            return send_from_directory(
-                directory=os.path.dirname(document.file_path),
-                path=os.path.basename(document.file_path),
-                as_attachment=True,
-                download_name=f"{os.path.splitext(document.original_filename)[0]}.pdf"
-            )
-        else:
-            # For non-PDF files, we need to convert to PDF first
-            from services.pdf_service import pdf_service
-            import tempfile
-            
-            # Get document text
-            from services.document_parser import document_parser
-            
-            try:
-                document_text = document_parser.parse_document(document.file_path)
-                
-                # Create HTML content
-                html_content = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>{document.original_filename}</title>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; margin: 50px; }}
-                        pre {{ white-space: pre-wrap; }}
-                    </style>
-                </head>
-                <body>
-                    <h1>{document.original_filename}</h1>
-                    <p>Converted to PDF by Legal Data Insights</p>
-                    <hr>
-                    <pre>{document_text}</pre>
-                </body>
-                </html>
-                """
-                
-                # Convert to PDF
-                pdf_path = pdf_service.html_to_pdf(html_content, title=document.original_filename)
-                
-                # Return the generated PDF file
-                response = send_file(pdf_path, as_attachment=True, 
-                                    download_name=f"{os.path.splitext(document.original_filename)[0]}.pdf")
-                
-                # Clean up temporary file after sending
-                @after_this_request
-                def remove_file(response):
-                    try:
-                        if os.path.exists(pdf_path):
-                            os.unlink(pdf_path)
-                    except Exception as e:
-                        app.logger.error(f"Error removing temporary file: {e}")
-                    return response
-                    
-                return response
-                
-            except Exception as e:
-                flash(f"Error converting to PDF: {str(e)}", "error")
-                return redirect(url_for('document_detail', document_id=document_id))
-                              
     @app.route('/documents/<int:document_id>/analyze', methods=['POST'])
     @login_required
     def analyze_document_route(document_id):
@@ -397,47 +328,10 @@ def setup_web_routes(app):
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         document = Document.query.get_or_404(brief.document_id)
         
-        # Get statutes associated with this document
-        statutes = Statute.query.filter_by(document_id=document.id).all()
-        
         # Create a form without CSRF
         form = CSRFDisabledForm()
         
-        return render_template('brief_detail.html', brief=brief, document=document, statutes=statutes, form=form)
-        
-    @app.route('/briefs/<int:brief_id>/download-pdf')
-    @login_required
-    def download_brief_pdf(brief_id):
-        """Download a brief as a PDF file."""
-        from services.pdf_service import pdf_service
-        import os
-        
-        brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
-        
-        try:
-            # Generate the PDF
-            pdf_path = pdf_service.generate_brief_pdf(brief_id)
-            
-            # Prepare the filename for the downloaded file
-            filename = f"Brief_{brief.title.replace(' ', '_')}.pdf"
-            
-            # Return the file as an attachment
-            response = send_file(pdf_path, as_attachment=True, download_name=filename)
-            
-            # Add cleanup callback to remove the temp file after sending
-            @after_this_request
-            def remove_file(response):
-                try:
-                    if os.path.exists(pdf_path):
-                        os.unlink(pdf_path)
-                except Exception as e:
-                    app.logger.error(f"Error removing temporary file: {e}")
-                return response
-                
-            return response
-        except Exception as e:
-            flash(f"Error generating PDF: {str(e)}", "error")
-            return redirect(url_for('brief_detail', brief_id=brief_id))
+        return render_template('brief_detail.html', brief=brief, document=document, form=form)
         
     @app.route('/briefs/<int:brief_id>/delete', methods=['POST'])
     @login_required
@@ -741,38 +635,6 @@ def setup_web_routes(app):
                               tag=tag, 
                               entries=entries)
     
-    @app.route('/documents/<int:document_id>/add-statute', methods=['POST'])
-    @login_required
-    def add_statute_to_document(document_id):
-        """Manually add a statute to a document."""
-        document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
-        
-        reference = request.form.get('reference')
-        content = request.form.get('content')
-        is_current = request.form.get('is_current', 'True') == 'True'
-        
-        if not reference:
-            flash('Statute reference is required', 'danger')
-            return redirect(url_for('document_detail', document_id=document_id))
-            
-        try:
-            statute = Statute(
-                reference=reference,
-                content=content,
-                is_current=is_current,
-                document_id=document_id
-            )
-            
-            db.session.add(statute)
-            db.session.commit()
-            
-            flash('Statute added successfully', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Error adding statute: {str(e)}', 'danger')
-            
-        return redirect(url_for('document_detail', document_id=document_id))
-        
     @app.route('/documents/<int:document_id>/extract-knowledge', methods=['POST'])
     @login_required
     def document_extract_knowledge(document_id):

@@ -18,15 +18,9 @@
         </div>
         <div class="col-md-4 text-md-end">
             <div class="btn-group" role="group">
-                <div class="dropdown">
-                    <button class="btn btn-outline-primary dropdown-toggle" type="button" id="downloadDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="fas fa-download me-2"></i> Download
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="downloadDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('download_file', filename=document.filename) }}">Original File</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('download_document_pdf', document_id=document.id) }}">PDF Version</a></li>
-                    </ul>
-                </div>
+                <a href="{{ url_for('download_file', filename=document.filename) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-download me-2"></i> Download
+                </a>
                 {% if document.processed %}
                 <a href="#generateBriefModal" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#generateBriefModal">
                     <i class="fas fa-file-contract me-2"></i> Generate Brief
@@ -165,11 +159,8 @@
                                             Statutes and Regulations Referenced
                                         </h5>
                                         <div>
-                                            <button class="btn btn-sm btn-outline-primary me-2" id="verifyAllStatutes">
+                                            <button class="btn btn-sm btn-outline-primary" id="verifyAllStatutes">
                                                 <i class="fas fa-sync-alt me-1"></i> Verify All
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addStatuteModal">
-                                                <i class="fas fa-plus me-1"></i> Add Statute
                                             </button>
                                         </div>
                                     </div>
@@ -302,43 +293,6 @@
     </div>
 </div>
 {% endblock %}
-
-<!-- Add Statute Modal -->
-<div class="modal fade" id="addStatuteModal" tabindex="-1" aria-labelledby="addStatuteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addStatuteModalLabel">Add Statute Reference</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ url_for('add_statute_to_document', document_id=document.id) }}" method="post">
-                {{ form.csrf_token }}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="statuteReference" class="form-label">Statute Reference*</label>
-                        <input type="text" class="form-control" id="statuteReference" name="reference" required placeholder="e.g., 42 U.S.C. § 1983">
-                    </div>
-                    <div class="mb-3">
-                        <label for="statuteContent" class="form-label">Statute Content</label>
-                        <textarea class="form-control" id="statuteContent" name="content" rows="4" placeholder="Enter the text of the statute if available"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="isCurrent" name="is_current" value="True" checked>
-                            <label class="form-check-label" for="isCurrent">
-                                Statute is current and valid
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Statute</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 {% block extra_js %}
 <script>

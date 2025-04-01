@@ -22,10 +22,10 @@
         </div>
         <div class="col-md-4 text-md-end">
             <div class="btn-group" role="group">
-                <a href="{{ url_for('download_brief_pdf', brief_id=brief.id) }}" class="btn btn-outline-primary">
+                <a href="#" class="btn btn-outline-primary" id="downloadPdf">
                     <i class="fas fa-file-pdf me-2"></i> Download PDF
                 </a>
-                <a href="#" class="btn btn-outline-info disabled" id="downloadDocx" title="Coming soon">
+                <a href="#" class="btn btn-outline-info" id="downloadDocx">
                     <i class="fas fa-file-word me-2"></i> Download Word
                 </a>
                 <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteBriefModal">
@@ -148,12 +148,69 @@
             briefMarkdown.innerHTML = marked.parse(briefContent);
         }
         
-        // Word document download - coming soon message
+        // PDF download - placeholder functionality
+        const pdfButton = document.getElementById('downloadPdf');
+        if (pdfButton) {
+            pdfButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // In a real implementation, this would call an API endpoint to generate and download a PDF
+                alert('PDF generation would be implemented here.');
+                
+                // Example API call (commented out)
+                /*
+                fetch('/api/briefs/{{ brief.id }}/pdf', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + API_TOKEN
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = '{{ brief.title }}.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => console.error('Error generating PDF:', error));
+                */
+            });
+        }
+        
+        // Word document download - placeholder functionality
         const docxButton = document.getElementById('downloadDocx');
         if (docxButton) {
             docxButton.addEventListener('click', function(e) {
                 e.preventDefault();
-                alert('Word document generation will be available in a future update.');
+                
+                // In a real implementation, this would call an API endpoint to generate and download a DOCX
+                alert('Word document generation would be implemented here.');
+                
+                // Example API call (commented out)
+                /*
+                fetch('/api/briefs/{{ brief.id }}/docx', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + API_TOKEN
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = '{{ brief.title }}.docx';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => console.error('Error generating Word document:', error));
+                */
             });
         }
     });
