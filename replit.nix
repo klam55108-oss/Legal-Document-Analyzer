@@ -1,5 +1,7 @@
 {pkgs}: {
   deps = [
+    pkgs.python3
+    pkgs.wkhtmltopdf
     pkgs.tk
     pkgs.tcl
     pkgs.qhull
