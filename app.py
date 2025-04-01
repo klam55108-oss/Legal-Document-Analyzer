@@ -49,6 +49,24 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'web_login'
     
+    # Add custom jinja filters
+    @app.template_filter('escapejs')
+    def escapejs_filter(s):
+        """
+        Escape string for safe use in JavaScript. 
+        Replace newlines with \n, quotes with escaped quotes, etc.
+        """
+        if s is None:
+            return ''
+            
+        s = str(s)
+        s = s.replace('\\', '\\\\')
+        s = s.replace('\r', '\\r')
+        s = s.replace('\n', '\\n')
+        s = s.replace('"', '\\"')
+        s = s.replace("'", "\\'")
+        return s
+    
     # Add database connection cleanup
     @app.teardown_request
     def shutdown_session(exception=None):

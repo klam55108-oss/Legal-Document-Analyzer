@@ -363,14 +363,18 @@ def setup_web_routes(app):
     def brief_detail(brief_id):
         """Show details of a specific brief."""
         from forms import CSRFDisabledForm
+        from models import Statute
         
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         document = Document.query.get_or_404(brief.document_id)
         
+        # Get all statutes for this document
+        statutes = Statute.query.filter_by(document_id=document.id).all()
+        
         # Create a form without CSRF
         form = CSRFDisabledForm()
         
-        return render_template('brief_detail.html', brief=brief, document=document, form=form)
+        return render_template('brief_detail.html', brief=brief, document=document, statutes=statutes, form=form)
         
     @app.route('/briefs/<int:brief_id>/delete', methods=['POST'])
     @login_required

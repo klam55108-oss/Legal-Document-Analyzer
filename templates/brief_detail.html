@@ -142,9 +142,9 @@
         // Render markdown if content is markdown
         const briefMarkdown = document.getElementById('briefMarkdown');
         if (briefMarkdown) {
-            // Get the brief content from the server
-            const briefContent = `{{ brief.content|safe }}`;
-            // Render the markdown
+            // Get the brief content from the server - don't use backticks here
+            const briefContent = "{{ brief.content|escapejs }}";
+            // Render the markdown using marked library
             briefMarkdown.innerHTML = marked.parse(briefContent);
         }
         
