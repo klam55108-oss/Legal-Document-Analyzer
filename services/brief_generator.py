@@ -42,10 +42,39 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             from services.document_parser import document_parser
             document_text = document_parser.parse_document(document.file_path)
             
-            # Check if we got valid text
+            # Check if we have valid text
             if not document_text:
                 logger.error("Document parser returned empty content")
-                raise ValueError("Failed to extract text from document")
+                # Create a brief with error message instead of failing
+                error_brief = Brief(
+                    title=title or f"Error Report for {document.original_filename}",
+                    content=f"The document could not be analyzed because no text could be extracted. The file may be corrupted, password-protected, or contain only images without any searchable text.",
+                    summary="Document could not be processed.",
+                    document_id=document.id,
+                    user_id=document.user_id,
+                    key_points=["Document could not be processed", "No text could be extracted", "Try uploading a searchable PDF version"]
+                )
+                db.session.add(error_brief)
+                db.session.commit()
+                logger.info(f"Created error brief for document {document.id}")
+                return error_brief
+            
+            # Check if the text is an error message from document parser
+            if document_text.startswith("This document appears to") or document_text.startswith("There was an error"):
+                logger.warning(f"Document parser returned error message: {document_text[:100]}...")
+                # Create a brief with the error message
+                error_brief = Brief(
+                    title=title or f"Processing Issues for {document.original_filename}",
+                    content=f"The document analysis encountered the following issue:\n\n{document_text}\n\nPlease consider uploading a different document format or a searchable PDF.",
+                    summary="Document processing encountered issues.",
+                    document_id=document.id,
+                    user_id=document.user_id,
+                    key_points=["Document processing encountered issues", "See details in the brief content", "Try uploading a searchable PDF version"]
+                )
+                db.session.add(error_brief)
+                db.session.commit()
+                logger.info(f"Created issue brief for document {document.id}")
+                return error_brief
             
             # Check if we got a dictionary or string
             if isinstance(document_text, dict):
@@ -53,7 +82,18 @@ def generate_brief(document, custom_title=None, focus_areas=None):
                 document_text = document_text.get("full_text", "")
                 if not document_text:
                     logger.error("No full_text found in document_text dictionary")
-                    raise ValueError("No full_text found in parsed document")
+                    error_brief = Brief(
+                        title=title or f"Error Report for {document.original_filename}",
+                        content="The document analysis service returned incomplete results. The 'full_text' field is missing from the parsed document.",
+                        summary="Document parsing returned incomplete results.",
+                        document_id=document.id,
+                        user_id=document.user_id,
+                        key_points=["Document parsing error", "No text content was found", "Try a different document format"]
+                    )
+                    db.session.add(error_brief)
+                    db.session.commit()
+                    logger.info(f"Created error brief for document with missing full_text {document.id}")
+                    return error_brief
             
             logger.info(f"Document text extracted: {len(document_text)} characters")
             
