@@ -6,7 +6,7 @@ import logging
 from typing import Dict, Any, Optional, Union
 
 from integrations.base import CloudStorageIntegration, DatabaseIntegration
-from integrations.google_drive import GoogleDriveIntegration
+from integrations.google_drive_integration import GoogleDriveIntegration
 from integrations.dropbox_integration import DropboxIntegration
 from integrations.box_integration import BoxIntegration
 from integrations.msgraph_integration import MSGraphIntegration

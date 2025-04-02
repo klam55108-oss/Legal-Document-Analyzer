@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Google Drive Files{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Google Drive Files</h2>
+        <div>
+            <a href="{{ url_for('google_drive.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-cog me-1"></i> Google Drive Settings
+            </a>
+        </div>
+    </div>
+    
+    {% if files %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Available Documents</h5>
+                <p class="card-text text-muted mb-3">
+                    Showing files from your Google Drive that can be imported for legal analysis. 
+                    We only display document types that are compatible with our platform.
+                </p>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Document Name</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>Modified</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for file in files %}
+                            <tr>
+                                <td>{{ file.name }}</td>
+                                <td>
+                                    {% if 'pdf' in file.mimeType %}
+                                        <span class="badge bg-danger">PDF</span>
+                                    {% elif 'word' in file.mimeType %}
+                                        <span class="badge bg-primary">Word</span>
+                                    {% elif 'text' in file.mimeType %}
+                                        <span class="badge bg-success">Text</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Document</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if file.size %}
+                                        {{ (file.size|int / 1024)|round|int }} KB
+                                    {% else %}
+                                        Unknown
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if file.modifiedTime %}
+                                        {{ file.modifiedTime|replace('T', ' ')|replace('Z', '')|truncate(16, True, '') }}
+                                    {% else %}
+                                        Unknown
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('google_drive.download_file', file_id=file.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-cloud-download-alt me-1"></i> Import
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                <h5>No compatible files found</h5>
+                <p class="text-muted">
+                    We couldn't find any compatible documents in your Google Drive. 
+                    Our system supports PDF, Word, and text documents.
+                </p>
+                <a href="{{ url_for('documents') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i> Upload Documents Instead
+                </a>
+            </div>
+        </div>
+    {% endif %}
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Supported File Types</h5>
+            <ul class="list-group list-group-flush mb-3">
+                <li class="list-group-item d-flex align-items-center">
+                    <span class="badge bg-danger me-2">PDF</span>
+                    <span>Adobe PDF Documents (.pdf)</span>
+                </li>
+                <li class="list-group-item d-flex align-items-center">
+                    <span class="badge bg-primary me-2">Word</span>
+                    <span>Microsoft Word Documents (.doc, .docx)</span>
+                </li>
+                <li class="list-group-item d-flex align-items-center">
+                    <span class="badge bg-success me-2">Text</span>
+                    <span>Plain Text Files (.txt)</span>
+                </li>
+            </ul>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> Once imported, your documents will appear in your Documents section and can be processed for legal analysis.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

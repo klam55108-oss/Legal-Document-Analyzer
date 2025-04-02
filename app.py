@@ -122,6 +122,14 @@ def create_app():
             logger.info("Integrations API registered successfully")
         except ImportError as e:
             logger.warning(f"Integrations API not registered due to missing dependencies: {str(e)}")
+            
+        # Register Google Drive integration
+        try:
+            from integrations.google_drive import register_blueprint as register_google_drive_blueprint
+            register_google_drive_blueprint(app)
+            logger.info("Google Drive integration registered successfully")
+        except ImportError as e:
+            logger.warning(f"Google Drive integration not registered due to missing dependencies: {str(e)}")
         
         # Initialize ML service
         from services.ml_service import ml_service

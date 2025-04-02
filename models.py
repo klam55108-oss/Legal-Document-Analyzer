@@ -189,3 +189,30 @@ class OnboardingProgress(db.Model):
     
     def __repr__(self):
         return f'<OnboardingProgress user_id={self.user_id} step={self.current_step}>'
+
+class GoogleCredential(db.Model):
+    __tablename__ = 'google_credentials'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    access_token = db.Column(db.String(255), nullable=True)
+    refresh_token = db.Column(db.String(255), nullable=True)
+    token_expiry = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('google_credential', uselist=False, cascade='all, delete-orphan'))
+    
+    def is_valid(self):
+        """Check if the access token is still valid."""
+        if not self.access_token or not self.token_expiry:
+            return False
+        # Check if token has expired (with 5 minute buffer)
+        buffer_time = datetime.timedelta(minutes=5)
+        return datetime.datetime.utcnow() < self.token_expiry - buffer_time
+    
+    def __repr__(self):
+        return f'<GoogleCredential user_id={self.user_id}>'

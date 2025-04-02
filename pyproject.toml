@@ -38,4 +38,5 @@ dependencies = [
     "boxsdk>=3.13.0",
     "msgraph-core>=1.3.3",
     "trafilatura>=2.0.0",
+    "oauthlib>=3.2.2",
 ]

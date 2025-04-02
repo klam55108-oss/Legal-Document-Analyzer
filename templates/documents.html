@@ -6,9 +6,14 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0">My Documents</h1>
-        <a href="#uploadModal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-            <i class="fas fa-upload me-2"></i> Upload Document
-        </a>
+        <div class="btn-group">
+            <a href="#uploadModal" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                <i class="fas fa-upload me-2"></i> Upload Document
+            </a>
+            <a href="{{ url_for('google_drive.list_files') }}" class="btn btn-outline-primary">
+                <i class="fab fa-google-drive me-2"></i> Import from Google Drive
+            </a>
+        </div>
     </div>
     
     <!-- Search and Filters -->
@@ -175,9 +180,14 @@
                                     <div class="text-muted">
                                         <i class="fas fa-file-alt fa-3x mb-3"></i>
                                         <p>No documents found. Upload your first legal document to get started!</p>
-                                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
-                                            <i class="fas fa-upload me-2"></i> Upload Document
-                                        </button>
+                                        <div class="btn-group">
+                                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                                                <i class="fas fa-upload me-2"></i> Upload Document
+                                            </button>
+                                            <a href="{{ url_for('google_drive.list_files') }}" class="btn btn-outline-primary">
+                                                <i class="fab fa-google-drive me-2"></i> Import from Google Drive
+                                            </a>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>

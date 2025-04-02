@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Google Drive Integration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Google Drive Integration</h2>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Access Your Legal Documents from Google Drive</h5>
+            <p class="card-text">
+                Connect your Google Drive account to easily import legal documents for analysis without having to download them manually.
+            </p>
+            
+            {% if connected %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i> Your Google Drive account is connected.
+                </div>
+                <div class="d-flex">
+                    <a href="{{ url_for('google_drive.list_files') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-list me-1"></i> Browse Files
+                    </a>
+                    <a href="{{ url_for('google_drive.disconnect') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-unlink me-1"></i> Disconnect
+                    </a>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Connect your Google Drive account to import documents.
+                </div>
+                <a href="{{ url_for('google_drive.auth') }}" class="btn btn-primary">
+                    <i class="fab fa-google me-1"></i> Connect Google Drive
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">How It Works</h5>
+            <ol class="list-group list-group-numbered mb-3">
+                <li class="list-group-item">Connect your Google Drive account by clicking the button above</li>
+                <li class="list-group-item">Browse your documents stored on Google Drive</li>
+                <li class="list-group-item">Select documents to import for legal analysis</li>
+                <li class="list-group-item">Process selected documents with our AI-powered tools</li>
+            </ol>
+            
+            <div class="alert alert-warning">
+                <i class="fas fa-shield-alt me-2"></i> <strong>Privacy Notice:</strong> We only request read-only access to your Google Drive files. We never modify or delete your original documents.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
