@@ -35,10 +35,12 @@ google_drive_bp = Blueprint('google_drive', __name__, url_prefix='/integrations/
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
 SCOPES = [
+    'email',
+    'profile',
+    'openid',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile',
-    'openid'
+    'https://www.googleapis.com/auth/userinfo.profile'
 ]
 
 # Get the most appropriate domain for the redirect URI
