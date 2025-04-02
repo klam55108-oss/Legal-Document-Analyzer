@@ -34,7 +34,12 @@ google_drive_bp = Blueprint('google_drive', __name__, url_prefix='/integrations/
 # Get Google credentials from environment
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
+]
 
 # Get the most appropriate domain for the redirect URI
 # Try REPLIT_HOSTNAME first (production), then fall back to REPLIT_DEV_DOMAIN (development)
@@ -58,16 +63,26 @@ if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
 
 def create_flow():
     """Create an OAuth flow instance to manage the OAuth 2.0 Authorization Grant Flow."""
+    # Get the JavaScript origin by extracting just the protocol and hostname
+    replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
+    js_origin = f"https://{replit_domain}" if replit_domain else ""
+    
+    client_config = {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [REDIRECT_URI],
+            "javascript_origins": [js_origin]
+        }
+    }
+    
+    logger.info(f"Creating OAuth flow with redirect_uri: {REDIRECT_URI}")
+    logger.info(f"JavaScript origins: {client_config['web']['javascript_origins']}")
+    
     flow = Flow.from_client_config(
-        {
-            "web": {
-                "client_id": GOOGLE_CLIENT_ID,
-                "client_secret": GOOGLE_CLIENT_SECRET,
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": [REDIRECT_URI]
-            }
-        },
+        client_config,
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI
     )
@@ -134,23 +149,44 @@ def auth():
         include_granted_scopes='true',
         prompt='consent'
     )
+    # Log the authorization URL for debugging
+    logger.info(f"Google authorization URL: {authorization_url}")
     session['google_auth_state'] = state
-    return redirect(authorization_url)
+    
+    # Since we're having issues with the scope, let's log the scopes we're requesting
+    return render_template('google_drive/auth_confirm.html', 
+                           auth_url=authorization_url, 
+                           scopes=SCOPES)
 
 @google_drive_bp.route('/auth/callback')
 @login_required
 def callback():
     """Handle OAuth callback from Google."""
+    # Check if there's an error parameter (Google OAuth sends this when there's a problem)
+    error = request.args.get('error')
+    if error:
+        logger.error(f"Google OAuth returned an error: {error}")
+        error_description = request.args.get('error_description', 'No additional error details provided')
+        flash(f'Google authentication failed: {error} - {error_description}', 'danger')
+        return redirect(url_for('google_drive.setup_guide'))
+    
     # Verify state
     state = session.get('google_auth_state')
     if not state or state != request.args.get('state'):
+        logger.error(f"State mismatch. Session state: {state}, Request state: {request.args.get('state')}")
         flash('Authentication failed: State mismatch.', 'danger')
         return redirect(url_for('google_drive.index'))
     
     try:
+        # Log the callback URL and params for debugging
+        logger.info(f"Callback URL: {request.url}")
+        logger.info(f"Callback params: {request.args}")
+        
         flow = create_flow()
         # Make sure we're using https for the callback URL even if forwarded through http
         authorization_response = request.url.replace('http://', 'https://')
+        logger.info(f"Using authorization_response: {authorization_response}")
+        
         flow.fetch_token(authorization_response=authorization_response)
         credentials = flow.credentials
         
@@ -180,9 +216,37 @@ def callback():
         error_str = str(e)
         logger.error(f"Error in Google OAuth callback: {error_str}")
         
+        # Special handling for scope changes
+        if "Scope has changed" in error_str:
+            # Extract the scopes that Google actually returned
+            callback_scope = request.args.get('scope', '')
+            logger.info(f"Received scopes: {callback_scope}")
+            
+            # The scopes that Google returned in the callback
+            returned_scopes = callback_scope.split(" ")
+            
+            # Update our global SCOPES to match what Google is actually returning
+            global SCOPES
+            SCOPES = returned_scopes
+            logger.info(f"Updated SCOPES to: {SCOPES}")
+            
+            # Try the authorization process again with the correct scopes
+            flash("Retrying authorization with updated permissions. Please try again.", "warning")
+            return redirect(url_for('google_drive.auth'))
+        
         # If we get a 403 error, redirect to the setup guide
         if "403" in error_str:
             flash('Google authentication failed with a 403 error. This typically means your OAuth client is not properly configured.', 'danger')
+            return redirect(url_for('google_drive.setup_guide'))
+        
+        # If there's an invalid_client error, it means the client ID/secret is wrong
+        if "invalid_client" in error_str.lower():
+            flash('Invalid client credentials. Please check your GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET environment variables.', 'danger')
+            return redirect(url_for('google_drive.setup_guide'))
+        
+        # If there's a redirect_uri_mismatch error, it means the redirect URI is misconfigured
+        if "redirect_uri_mismatch" in error_str.lower():
+            flash('Redirect URI mismatch. Make sure the redirect URI in Google Cloud Console exactly matches the one shown in the setup guide.', 'danger')
             return redirect(url_for('google_drive.setup_guide'))
         
         flash(f'Authentication failed: {error_str}', 'danger')

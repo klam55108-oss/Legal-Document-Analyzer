@@ -1,0 +1,66 @@
+{% extends 'layout.html' %}
+
+{% block title %}Google Drive Authorization Confirmation{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Google Drive Authorization</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Important:</strong> You're about to authorize LegalDataInsights to access your Google Drive.
+            </div>
+            
+            <h5 class="mt-4">Requested Permissions:</h5>
+            <ul class="list-group mb-4">
+                {% for scope in scopes %}
+                <li class="list-group-item">
+                    <i class="fas fa-check-circle text-success me-2"></i>
+                    {{ scope }}
+                </li>
+                {% endfor %}
+            </ul>
+            
+            <div class="alert alert-warning">
+                <p><strong>Why we need these permissions:</strong></p>
+                <ul>
+                    <li><strong>drive.readonly</strong>: To list and download your legal documents</li>
+                    <li><strong>userinfo.email/profile</strong>: To verify your identity</li>
+                    <li><strong>openid</strong>: Standard OAuth authentication protocol</li>
+                </ul>
+            </div>
+            
+            <p class="mt-4">Click the button below to proceed with Google Drive authorization.</p>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('integrations') }}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </a>
+                <a href="{{ auth_url }}" class="btn btn-primary">
+                    <i class="fab fa-google me-1"></i> Authorize with Google
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Troubleshooting Tips</h5>
+        </div>
+        <div class="card-body">
+            <p>If you encounter any issues during authorization:</p>
+            <ol>
+                <li>Make sure you're signed in to the Google account where your documents are stored</li>
+                <li>Check that pop-up blockers are disabled for this site</li>
+                <li>If you see a "redirect_uri_mismatch" error, please contact the administrator</li>
+                <li>If you see an "invalid_client" error, the OAuth client may not be properly configured</li>
+            </ol>
+            
+            <p>For more detailed setup instructions, visit the <a href="{{ url_for('google_drive.setup_guide') }}">Google Drive Setup Guide</a>.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
