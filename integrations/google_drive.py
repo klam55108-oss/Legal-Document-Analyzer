@@ -53,7 +53,8 @@ if not DOMAIN:
 # Full redirect URI for OAuth callback - use custom REDIRECT_URI if provided
 REDIRECT_URI = os.environ.get('REDIRECT_URI')
 if not REDIRECT_URI:
-    REDIRECT_URI = f"https://{DOMAIN}/integrations/google-drive/auth/callback"
+    # Use the specified custom domain for production
+    REDIRECT_URI = "https://james-kopeck.com/integrations/google-drive/auth/callback"
     
 logger.info(f"Google Drive OAuth redirect URI: {REDIRECT_URI}")
 
@@ -63,9 +64,8 @@ if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
 
 def create_flow():
     """Create an OAuth flow instance to manage the OAuth 2.0 Authorization Grant Flow."""
-    # Get the JavaScript origin by extracting just the protocol and hostname
-    replit_domain = os.environ.get("REPLIT_DEV_DOMAIN", "")
-    js_origin = f"https://{replit_domain}" if replit_domain else ""
+    # Use the custom domain for JavaScript origin in production
+    js_origin = "https://james-kopeck.com"
     
     client_config = {
         "web": {
