@@ -1,0 +1,89 @@
+{% extends 'layout.html' %}
+
+{% block title %}Google Drive Direct Authorization{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Google Drive Authorization - Troubleshooting Mode</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Alternative Authorization Method</strong>
+                <p>This page offers an alternative method to connect to Google Drive when experiencing "refused to connect" errors.</p>
+            </div>
+            
+            <h5 class="mt-4 mb-3">Method 1: Manual Form Submission</h5>
+            <p>Click the button below to submit a manual form directly to Google's authentication servers:</p>
+            
+            <form action="{{ basic_url }}" method="GET" target="_blank" class="mb-4">
+                {% for param in auth_params.split('&') %}
+                    {% set parts = param.split('=') %}
+                    {% if parts|length == 2 %}
+                        <input type="hidden" name="{{ parts[0] }}" value="{{ parts[1]|urldecode }}">
+                    {% endif %}
+                {% endfor %}
+                <button type="submit" class="btn btn-primary">
+                    <i class="fab fa-google me-1"></i> Authorize with Form Submission
+                </button>
+            </form>
+            
+            <h5 class="mt-4 mb-3">Method 2: Copy Authorization URL</h5>
+            <p>Copy the URL below and paste it into a new browser tab:</p>
+            
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" value="{{ full_url }}" id="auth-url" readonly>
+                <button class="btn btn-outline-secondary" type="button" onclick="copyAuthUrl()">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            
+            <h5 class="mt-4 mb-3">Method 3: Component Parts</h5>
+            <p>If you're still having issues, you can manually construct the URL:</p>
+            
+            <div class="card">
+                <div class="card-header">Base URL</div>
+                <div class="card-body">
+                    <code>{{ basic_url }}</code>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">Parameters (URL-encoded)</div>
+                <div class="card-body">
+                    <code>{{ auth_params }}</code>
+                </div>
+            </div>
+            
+            <h5 class="mt-4 mb-3">After Authorization</h5>
+            <p>After successfully authorizing with Google, you'll be redirected back to:</p>
+            <code>{{ redirect_uri }}</code>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('google_drive.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Google Drive
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyAuthUrl() {
+    var authUrlInput = document.getElementById("auth-url");
+    authUrlInput.select();
+    document.execCommand("copy");
+    
+    var button = authUrlInput.nextElementSibling;
+    var originalHtml = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+    setTimeout(function() {
+        button.innerHTML = originalHtml;
+    }, 2000);
+}
+</script>
+{% endblock %}

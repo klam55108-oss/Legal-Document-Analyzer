@@ -43,6 +43,20 @@
                     <i class="fab fa-google me-1"></i> Authorize with Google
                 </a>
             </div>
+            
+            <div class="mt-4">
+                <div class="alert alert-info">
+                    <strong>Experiencing "refused to connect" errors?</strong>
+                    <p>Try going directly to Google's authentication page with this direct link: <a href="https://accounts.google.com/o/oauth2/auth" target="_blank">https://accounts.google.com/o/oauth2/auth</a></p>
+                    <p>If that page loads, the issue is with the specific OAuth configuration parameters, not with connectivity to Google.</p>
+                </div>
+                <div class="card bg-light mt-2">
+                    <div class="card-body">
+                        <h6>For troubleshooting, here's the full OAuth URL:</h6>
+                        <small><code>{{ auth_url }}</code></small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     

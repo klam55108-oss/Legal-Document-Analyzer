@@ -67,6 +67,17 @@ def create_app():
         s = s.replace("'", "\\'")
         return s
         
+    @app.template_filter('urldecode')
+    def urldecode_filter(s):
+        """
+        Decode URL-encoded strings
+        """
+        if s is None:
+            return ''
+            
+        import urllib.parse
+        return urllib.parse.unquote_plus(str(s))
+        
     @app.context_processor
     def utility_processor():
         """Add utility functions to Jinja2 context."""

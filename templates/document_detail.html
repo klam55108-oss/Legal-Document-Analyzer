@@ -8,6 +8,13 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{{ url_for('documents') }}">Documents</a></li>
+            {% if session.get('last_google_folder') %}
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('google_drive.list_folder', folder_id=session.get('last_google_folder')) }}">
+                    <i class="fab fa-google-drive me-1"></i> Back to Google Drive
+                </a>
+            </li>
+            {% endif %}
             <li class="breadcrumb-item active" aria-current="page">{{ document.original_filename }}</li>
         </ol>
     </nav>

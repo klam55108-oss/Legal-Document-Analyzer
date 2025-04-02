@@ -158,6 +158,30 @@ def auth():
                            auth_url=authorization_url, 
                            scopes=SCOPES)
 
+@google_drive_bp.route('/auth-direct')
+@login_required
+def auth_direct():
+    """Alternative OAuth flow to troubleshoot 'refused to connect' errors."""
+    flow = create_flow()
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'
+    )
+    logger.info(f"Direct Google authorization URL: {authorization_url}")
+    session['google_auth_state'] = state
+    
+    # Display the URL parameters as a self-contained page
+    auth_params = authorization_url.split('?')[1]
+    basic_url = "https://accounts.google.com/o/oauth2/auth"
+    
+    # Create a form that will submit directly to Google
+    return render_template('google_drive/auth_direct.html', 
+                           basic_url=basic_url,
+                           auth_params=auth_params,
+                           redirect_uri=REDIRECT_URI,
+                           full_url=authorization_url)
+
 @google_drive_bp.route('/auth/callback')
 @login_required
 def callback():
@@ -256,6 +280,12 @@ def callback():
 @login_required
 def list_files():
     """List files from the user's Google Drive."""
+    return list_folder('root')
+
+@google_drive_bp.route('/folder/<folder_id>')
+@login_required
+def list_folder(folder_id):
+    """List files within a specific folder in Google Drive."""
     credentials = get_user_credentials(current_user.id)
     
     if not credentials:
@@ -273,15 +303,68 @@ def list_files():
             'text/plain'
         ]
         
-        query = " or ".join([f"mimeType='{mime}'" for mime in mime_types])
+        # Start with the folder query
+        query_parts = []
+        
+        # Add the folder filter
+        if folder_id == 'root':
+            query_parts.append("'root' in parents")
+        else:
+            query_parts.append(f"'{folder_id}' in parents")
+        
+        # Add the mime type filter for files - we also want to show folders
+        mime_type_query = " or ".join([f"mimeType='{mime}'" for mime in mime_types])
+        query_parts.append(f"(mimeType='application/vnd.google-apps.folder' or {mime_type_query})")
+        
+        # Combine all query parts
+        query = " and ".join(f"({part})" for part in query_parts)
+        
+        # List both files and folders
         results = service.files().list(
             q=query,
-            pageSize=50,
-            fields="files(id, name, mimeType, size, modifiedTime)"
+            pageSize=100,
+            fields="files(id, name, mimeType, size, modifiedTime, parents)"
         ).execute()
         
-        files = results.get('files', [])
-        return render_template('google_drive/files.html', files=files)
+        # Get current folder details if not root
+        current_folder = None
+        parent_folder_id = None
+        
+        if folder_id != 'root':
+            try:
+                current_folder = service.files().get(
+                    fileId=folder_id, 
+                    fields="id, name, parents"
+                ).execute()
+                
+                # Get parent folder ID if it exists
+                if 'parents' in current_folder:
+                    parent_folder_id = current_folder['parents'][0]
+            except Exception as folder_error:
+                logger.error(f"Error getting folder details: {str(folder_error)}")
+        
+        # Organize results into folders and files
+        folders = []
+        files = []
+        
+        for item in results.get('files', []):
+            if item['mimeType'] == 'application/vnd.google-apps.folder':
+                folders.append(item)
+            else:
+                files.append(item)
+        
+        # Sort alphabetically
+        folders.sort(key=lambda x: x['name'].lower())
+        files.sort(key=lambda x: x['name'].lower())
+        
+        return render_template(
+            'google_drive/files.html', 
+            folders=folders, 
+            files=files, 
+            current_folder=current_folder,
+            parent_folder_id=parent_folder_id,
+            folder_id=folder_id
+        )
     
     except Exception as e:
         logger.error(f"Error listing Google Drive files: {str(e)}")
@@ -292,6 +375,9 @@ def list_files():
 @login_required
 def download_file(file_id):
     """Download a file from Google Drive and save it to the document system."""
+    # Get the folder_id from query parameter so we can return to the same folder
+    folder_id = request.args.get('folder_id', 'root')
+    
     credentials = get_user_credentials(current_user.id)
     
     if not credentials:
@@ -302,7 +388,7 @@ def download_file(file_id):
         service = create_drive_service(credentials)
         
         # Get file metadata
-        file_metadata = service.files().get(fileId=file_id, fields="name,mimeType,size").execute()
+        file_metadata = service.files().get(fileId=file_id, fields="name,mimeType,size,parents").execute()
         
         # Download the file
         request = service.files().get_media(fileId=file_id)
@@ -338,13 +424,17 @@ def download_file(file_id):
         db.session.add(document)
         db.session.commit()
         
+        # Offer a link to return to the folder view
+        session['last_google_folder'] = folder_id
+        
         flash(f'File "{original_filename}" has been downloaded successfully.', 'success')
         return redirect(url_for('document_detail', document_id=document.id))
     
     except Exception as e:
         logger.error(f"Error downloading Google Drive file: {str(e)}")
         flash(f'Error downloading file: {str(e)}', 'danger')
-        return redirect(url_for('google_drive.list_files'))
+        # Return to the folder the user was browsing
+        return redirect(url_for('google_drive.list_folder', folder_id=folder_id))
 
 @google_drive_bp.route('/disconnect')
 @login_required
