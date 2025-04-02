@@ -147,13 +147,30 @@ def setup_web_routes(app):
                 # Save the file
                 file.save(file_path)
                 
+                # If the file is not a txt file, convert it to txt format
+                original_file_path = file_path
+                _, file_ext = os.path.splitext(file_path.lower())
+                
+                if file_ext != '.txt':
+                    logger.info(f"Converting non-txt file to txt format: {file_path}")
+                    from services.document_parser import document_parser
+                    txt_file_path = document_parser.convert_to_txt(file_path)
+                    
+                    if txt_file_path and os.path.exists(txt_file_path):
+                        # Use the txt file as the primary file
+                        file_path = txt_file_path
+                        unique_filename = os.path.basename(txt_file_path)
+                        logger.info(f"Successfully converted to txt file: {txt_file_path}")
+                    else:
+                        logger.warning(f"Failed to convert to txt format, using original file: {file_path}")
+                
                 # Create new document record
                 new_document = Document(
                     filename=unique_filename,
                     original_filename=filename,
                     file_path=file_path,
                     file_size=os.path.getsize(file_path),
-                    content_type=file.content_type,
+                    content_type="text/plain" if file_path.lower().endswith('.txt') else file.content_type,
                     user_id=current_user.id
                 )
                 
@@ -328,8 +345,21 @@ def setup_web_routes(app):
         
         # Try to delete the file from storage
         try:
+            # Delete the main file
             if os.path.exists(document.file_path):
                 os.remove(document.file_path)
+                logger.info(f"Deleted file: {document.file_path}")
+                
+            # Check if there might be an original non-txt version to clean up
+            if document.file_path.lower().endswith('.txt'):
+                # Get the original filename from the database
+                original_ext = os.path.splitext(document.original_filename)[1]
+                if original_ext.lower() != '.txt':
+                    # There might be an original file with a different extension
+                    original_path = document.file_path[:-4] + original_ext  # Replace .txt with original extension
+                    if os.path.exists(original_path):
+                        os.remove(original_path)
+                        logger.info(f"Deleted original file: {original_path}")
         except Exception as e:
             logger.error(f"Error deleting file: {str(e)}")
         

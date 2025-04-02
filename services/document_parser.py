@@ -34,6 +34,43 @@ class DocumentParser:
     def __init__(self):
         """Initialize the document parser."""
         logger.info("Document parser initialized")
+    
+    def convert_to_txt(self, file_path: str) -> str:
+        """
+        Convert a document to text file format.
+        
+        Args:
+            file_path: Path to the original document file
+            
+        Returns:
+            Path to the new txt file, or empty string if conversion failed
+        """
+        if not os.path.exists(file_path):
+            logger.error(f"File not found for conversion: {file_path}")
+            return ""
+        
+        # Extract the text content from the document
+        text_content = self.parse_document(file_path)
+        
+        if not text_content or len(text_content) < 10:
+            logger.error(f"Failed to extract meaningful text from {file_path}")
+            return ""
+        
+        # Create a new txt file path
+        original_dir = os.path.dirname(file_path)
+        original_name = os.path.basename(file_path)
+        base_name = original_name.rsplit('.', 1)[0]
+        new_path = os.path.join(original_dir, f"{base_name}.txt")
+        
+        # Write the text content to the file
+        try:
+            with open(new_path, 'w', encoding='utf-8') as txt_file:
+                txt_file.write(text_content)
+            logger.info(f"Successfully converted {file_path} to {new_path}")
+            return new_path
+        except Exception as e:
+            logger.error(f"Error writing text file: {str(e)}")
+            return ""
         
     def parse_document(self, file_path: str) -> str:
         """
