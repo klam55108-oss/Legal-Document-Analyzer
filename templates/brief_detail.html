@@ -53,8 +53,8 @@
         <div class="col-md-4">
             <!-- Brief Summary -->
             <div class="card border-secondary mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Brief Summary</h5>
+                <div class="card-header" style="background-color: rgba(108, 117, 125, 0.2);">
+                    <h5 class="mb-0 text-secondary">Brief Summary</h5>
                 </div>
                 <div class="card-body">
                     <p>{{ brief.summary }}</p>
@@ -64,8 +64,8 @@
             <!-- Enhanced AI Summary -->
             {% if brief.enhanced_summary %}
             <div class="card border-info mb-4">
-                <div class="card-header bg-info-subtle">
-                    <h5 class="mb-0">Enhanced AI Summary</h5>
+                <div class="card-header" style="background-color: rgba(13, 202, 240, 0.2);">
+                    <h5 class="mb-0 text-info">Enhanced AI Summary</h5>
                 </div>
                 <div class="card-body">
                     <p>{{ brief.enhanced_summary }}</p>
@@ -76,8 +76,8 @@
             <!-- Key Insights -->
             {% if brief.key_insights %}
             <div class="card border-primary mb-4">
-                <div class="card-header bg-primary-subtle">
-                    <h5 class="mb-0">Key Legal Insights</h5>
+                <div class="card-header" style="background-color: rgba(13, 110, 253, 0.2);">
+                    <h5 class="mb-0 text-primary">Key Legal Insights</h5>
                 </div>
                 <div class="card-body">
                     <div class="markdown-content">
@@ -94,8 +94,8 @@
             <!-- Action Items -->
             {% if brief.action_items %}
             <div class="card border-success mb-4">
-                <div class="card-header bg-success-subtle">
-                    <h5 class="mb-0">Recommended Actions</h5>
+                <div class="card-header" style="background-color: rgba(25, 135, 84, 0.2);">
+                    <h5 class="mb-0 text-success">Recommended Actions</h5>
                 </div>
                 <div class="card-body">
                     <div class="markdown-content">
@@ -111,8 +111,8 @@
             
             <!-- Document Info -->
             <div class="card border-secondary mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Source Document</h5>
+                <div class="card-header" style="background-color: rgba(108, 117, 125, 0.2);">
+                    <h5 class="mb-0 text-secondary">Source Document</h5>
                 </div>
                 <div class="card-body">
                     <h6>{{ document.original_filename }}</h6>
@@ -135,8 +135,8 @@
             <!-- Related Statutes -->
             {% if statutes %}
             <div class="card border-secondary">
-                <div class="card-header">
-                    <h5 class="mb-0">Referenced Statutes</h5>
+                <div class="card-header" style="background-color: rgba(108, 117, 125, 0.2);">
+                    <h5 class="mb-0 text-secondary">Referenced Statutes</h5>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
