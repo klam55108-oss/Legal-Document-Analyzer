@@ -51,6 +51,8 @@ def setup_web_routes(app):
     @app.route('/register', methods=['GET', 'POST'])
     def web_register():
         """Handle user registration."""
+        from app import db  # Import db at the beginning
+        
         if current_user.is_authenticated:
             return redirect(url_for('dashboard'))
         
@@ -108,6 +110,7 @@ def setup_web_routes(app):
         from wtforms import SubmitField
         from forms import CSRFDisabledForm
         import logging
+        from app import db  # Import db at the beginning
         
         logger = logging.getLogger(__name__)
         
@@ -215,6 +218,7 @@ def setup_web_routes(app):
         """Analyze a document that has been uploaded but not processed."""
         import traceback
         from services.document_parser import document_parser
+        from app import db  # Import db at the beginning
         
         logger = logging.getLogger(__name__)
         
@@ -337,6 +341,8 @@ def setup_web_routes(app):
     @login_required
     def delete_document(document_id):
         """Delete a document and its associated data."""
+        from app import db  # Import db at the beginning
+        
         document = Document.query.filter_by(id=document_id, user_id=current_user.id).first_or_404()
         
         # Delete associated data first (to avoid foreign key constraints)
@@ -410,6 +416,8 @@ def setup_web_routes(app):
     @login_required
     def delete_brief(brief_id):
         """Delete a brief."""
+        from app import db  # Import db at the beginning
+        
         brief = Brief.query.filter_by(id=brief_id, user_id=current_user.id).first_or_404()
         
         # Delete the brief
@@ -466,6 +474,8 @@ def setup_web_routes(app):
     def regenerate_api_key():
         """Regenerate the API key for the current user."""
         import uuid
+        from app import db  # Import db at the beginning
+        
         current_user.api_key = str(uuid.uuid4())
         db.session.commit()
         flash('Your API key has been regenerated.', 'success')
@@ -555,6 +565,7 @@ def setup_web_routes(app):
     def knowledge_create():
         """Create a new knowledge entry."""
         from forms import KnowledgeEntryForm
+        from app import db  # Import db at the beginning
         
         form = KnowledgeEntryForm()
         
@@ -626,6 +637,7 @@ def setup_web_routes(app):
     def knowledge_edit(entry_id):
         """Edit a knowledge entry."""
         from forms import KnowledgeEntryForm
+        from app import db  # Import db at the beginning
         
         entry = KnowledgeEntry.query.filter_by(id=entry_id, user_id=current_user.id).first_or_404()
         
@@ -847,6 +859,8 @@ def setup_web_routes(app):
     @login_required
     def onboarding_wizard():
         """Entry point for the user onboarding wizard."""
+        from app import db  # Import db at the beginning
+        
         try:
             # Initialize onboarding progress if it doesn't exist
             progress = OnboardingService.get_progress(current_user)
@@ -870,6 +884,7 @@ def setup_web_routes(app):
     @login_required
     def onboarding_next_step(current_step):
         """Proceed to the next step in the onboarding wizard."""
+        from app import db  # Import db at the beginning
         
         try:
             # Get current progress - this method now has built-in transaction handling
@@ -900,6 +915,7 @@ def setup_web_routes(app):
     @login_required
     def onboarding_skip():
         """Skip the onboarding process."""
+        from app import db  # Import db at the beginning
         
         try:    
             OnboardingService.skip_onboarding(current_user)
@@ -915,6 +931,7 @@ def setup_web_routes(app):
     @login_required
     def onboarding_restart():
         """Restart the onboarding process."""
+        from app import db  # Import db at the beginning
         
         try:    
             # Initialize new onboarding progress
