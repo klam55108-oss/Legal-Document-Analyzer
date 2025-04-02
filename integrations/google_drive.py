@@ -35,12 +35,10 @@ google_drive_bp = Blueprint('google_drive', __name__, url_prefix='/integrations/
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
 SCOPES = [
-    'email',
-    'profile',
-    'openid',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile'
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'openid'
 ]
 
 # Get the most appropriate domain for the redirect URI
@@ -83,13 +81,9 @@ def create_flow():
     logger.info(f"Creating OAuth flow with redirect_uri: {REDIRECT_URI}")
     logger.info(f"JavaScript origins: {client_config['web']['javascript_origins']}")
     
-    # Use session scopes if available, otherwise use default SCOPES
-    scopes_to_use = session.get('google_oauth_scopes', SCOPES)
-    logger.info(f"Using scopes: {scopes_to_use}")
-    
     flow = Flow.from_client_config(
         client_config,
-        scopes=scopes_to_use,
+        scopes=SCOPES,
         redirect_uri=REDIRECT_URI
     )
     return flow
@@ -111,16 +105,13 @@ def get_user_credentials(user_id):
     if not cred or not cred.is_valid():
         return None
     
-    # Use session scopes if available, otherwise fall back to default SCOPES
-    scopes_to_use = session.get('google_oauth_scopes', SCOPES)
-    
     credentials = Credentials(
         token=cred.access_token,
         refresh_token=cred.refresh_token,
         token_uri="https://oauth2.googleapis.com/token",
         client_id=GOOGLE_CLIENT_ID,
         client_secret=GOOGLE_CLIENT_SECRET,
-        scopes=scopes_to_use
+        scopes=SCOPES
     )
     return credentials
 
@@ -162,14 +153,10 @@ def auth():
     logger.info(f"Google authorization URL: {authorization_url}")
     session['google_auth_state'] = state
     
-    # Use scopes from the session if available
-    scopes_to_display = session.get('google_oauth_scopes', SCOPES)
-    logger.info(f"Displaying scopes in auth confirmation: {scopes_to_display}")
-    
     # Since we're having issues with the scope, let's log the scopes we're requesting
     return render_template('google_drive/auth_confirm.html', 
                            auth_url=authorization_url, 
-                           scopes=scopes_to_display)
+                           scopes=SCOPES)
 
 @google_drive_bp.route('/auth-direct')
 @login_required
@@ -187,10 +174,6 @@ def auth_direct():
     # Display the URL parameters as a self-contained page
     auth_params = authorization_url.split('?')[1]
     basic_url = "https://accounts.google.com/o/oauth2/auth"
-    
-    # Log the scopes we're using in the direct auth flow
-    scopes_to_use = session.get('google_oauth_scopes', SCOPES)
-    logger.info(f"Using scopes in direct auth: {scopes_to_use}")
     
     # Create a form that will submit directly to Google
     return render_template('google_drive/auth_direct.html', 
@@ -222,15 +205,6 @@ def callback():
         # Log the callback URL and params for debugging
         logger.info(f"Callback URL: {request.url}")
         logger.info(f"Callback params: {request.args}")
-        
-        # Sync our scopes with what Google is returning BEFORE creating the flow
-        callback_scope = request.args.get('scope', '')
-        if callback_scope:
-            returned_scopes = callback_scope.replace('+', ' ').split()
-            logger.info(f"Google returned scopes: {returned_scopes}")
-            # Store scopes in session instead of modifying global variable
-            session['google_oauth_scopes'] = returned_scopes
-            logger.info(f"Saved scopes to session: {returned_scopes}")
         
         flow = create_flow()
         # Make sure we're using https for the callback URL even if forwarded through http
@@ -272,11 +246,13 @@ def callback():
             callback_scope = request.args.get('scope', '')
             logger.info(f"Received scopes: {callback_scope}")
             
-            # The scopes that Google returned in the callback - split by space or plus sign
-            # Instead of modifying the global variable, set a session variable for next auth attempt
-            returned_scopes = callback_scope.replace('+', ' ').split()
-            session['google_oauth_scopes'] = returned_scopes
-            logger.info(f"Saved scopes to session: {returned_scopes}")
+            # The scopes that Google returned in the callback
+            returned_scopes = callback_scope.split(" ")
+            
+            # Update our global SCOPES to match what Google is actually returning
+            global SCOPES
+            SCOPES = returned_scopes
+            logger.info(f"Updated SCOPES to: {SCOPES}")
             
             # Try the authorization process again with the correct scopes
             flash("Retrying authorization with updated permissions. Please try again.", "warning")
