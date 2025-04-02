@@ -20,7 +20,7 @@ def generate_brief_with_openai(document_text, title, focus_areas=None, document_
         document_id (int, optional): Document ID to fetch related statutes
         
     Returns:
-        tuple: (content, summary)
+        tuple: (content, summary, enhanced_summary, key_insights, action_items)
     """
     try:
         # Verify OpenAI API key is available
@@ -139,13 +139,63 @@ If statutes are provided above, be sure to analyze them in your legal analysis a
         summary = ' '.join(summary_paragraphs)
         if len(summary) > 300:
             summary = summary[:297] + '...'
+            
+        # Now generate enhanced summaries and insights using a separate API call
+        logger.info("Generating enhanced summaries and insights")
+        summary_prompt = f"""
+        Please analyze the following legal brief and provide:
+        
+        1. ENHANCED SUMMARY: A detailed executive summary (500-700 characters) that captures the key points and conclusions.
+        2. KEY INSIGHTS: 3-5 bullet points of the most important legal insights from the brief.
+        3. ACTION ITEMS: 2-4 recommended next steps or actions based on the legal analysis.
+        
+        Format the response as JSON with keys "enhanced_summary", "key_insights", and "action_items".
+        
+        Legal brief:
+        {content}
+        """
+        
+        try:
+            # Call OpenAI API for enhanced summary
+            summary_response = client.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=[
+                    {"role": "system", "content": "You are a legal expert who creates concise, insightful summaries of legal documents."},
+                    {"role": "user", "content": summary_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=1000,
+                response_format={"type": "json_object"}
+            )
+            
+            # Parse the JSON response
+            summary_content = summary_response.choices[0].message.content
+            summary_data = json.loads(summary_content)
+            
+            enhanced_summary = summary_data.get("enhanced_summary", "")
+            key_insights = summary_data.get("key_insights", "")
+            action_items = summary_data.get("action_items", "")
+            
+            # Format the key insights and action items as markdown
+            if isinstance(key_insights, list):
+                key_insights = "\n".join([f"- {insight}" for insight in key_insights])
+            
+            if isinstance(action_items, list):
+                action_items = "\n".join([f"- {item}" for item in action_items])
+                
+            logger.info("Enhanced summaries generated successfully")
+        except Exception as e:
+            logger.error(f"Error generating enhanced summaries: {e}", exc_info=True)
+            enhanced_summary = "An error occurred while generating the enhanced summary."
+            key_insights = "Unable to extract key insights at this time."
+            action_items = "Please review the full brief for recommended actions."
         
         # Add generation note
         content += f"\n\n---\n*This brief was automatically generated on {datetime.utcnow().strftime('%Y-%m-%d')} with AI assistance. " \
                   f"It should be reviewed for accuracy and completeness.*"
         
         logger.info("Brief generation completed successfully")
-        return content, summary
+        return content, summary, enhanced_summary, key_insights, action_items
         
     except Exception as e:
         logger.error(f"Error in generate_brief_with_openai: {e}", exc_info=True)

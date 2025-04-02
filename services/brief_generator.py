@@ -46,8 +46,10 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             if not document_text:
                 logger.error("Document parser returned empty content")
                 # Create a brief with error message instead of failing
+                # Define a title for the error brief
+                default_title = f"Error Report for {document.original_filename}"
                 error_brief = Brief(
-                    title=title or f"Error Report for {document.original_filename}",
+                    title=default_title,
                     content=f"The document could not be analyzed because no text could be extracted. The file may be corrupted, password-protected, or contain only images without any searchable text.",
                     summary="Document could not be processed.",
                     document_id=document.id,
@@ -63,8 +65,10 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             if document_text.startswith("This document appears to") or document_text.startswith("There was an error"):
                 logger.warning(f"Document parser returned error message: {document_text[:100]}...")
                 # Create a brief with the error message
+                # Define a processing issues title
+                processing_issues_title = f"Processing Issues for {document.original_filename}"
                 error_brief = Brief(
-                    title=title or f"Processing Issues for {document.original_filename}",
+                    title=processing_issues_title,
                     content=f"The document analysis encountered the following issue:\n\n{document_text}\n\nPlease consider uploading a different document format or a searchable PDF.",
                     summary="Document processing encountered issues.",
                     document_id=document.id,
@@ -82,8 +86,10 @@ def generate_brief(document, custom_title=None, focus_areas=None):
                 document_text = document_text.get("full_text", "")
                 if not document_text:
                     logger.error("No full_text found in document_text dictionary")
+                    # Define a title for missing full text error
+                    missing_text_title = f"Error Report for {document.original_filename}"
                     error_brief = Brief(
-                        title=title or f"Error Report for {document.original_filename}",
+                        title=missing_text_title,
                         content="The document analysis service returned incomplete results. The 'full_text' field is missing from the parsed document.",
                         summary="Document parsing returned incomplete results.",
                         document_id=document.id,
@@ -99,7 +105,7 @@ def generate_brief(document, custom_title=None, focus_areas=None):
             
             # Generate the brief content
             logger.info("Creating brief content...")
-            title, content, summary = create_brief_content(document_text, document, custom_title, focus_areas)
+            title, content, summary, enhanced_summary, key_insights, action_items = create_brief_content(document_text, document, custom_title, focus_areas)
             
             if not content:
                 logger.error("Brief generation produced empty content")
@@ -116,6 +122,9 @@ def generate_brief(document, custom_title=None, focus_areas=None):
                 title=title,
                 content=content,
                 summary=summary,
+                enhanced_summary=enhanced_summary,
+                key_insights=key_insights,
+                action_items=action_items,
                 document_id=document.id,
                 user_id=document.user_id,
                 generated_at=datetime.utcnow()
@@ -151,7 +160,7 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
         focus_areas (list, optional): List of areas to focus on
         
     Returns:
-        tuple: (title, content, summary)
+        tuple: (title, content, summary, enhanced_summary, key_insights, action_items)
     """
     # Ensure document_text is a string
     if isinstance(document_text, dict):
@@ -189,7 +198,7 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             from services.openai_brief import generate_brief_with_openai
             
             # Generate the brief using our simplified service
-            content, summary = generate_brief_with_openai(
+            content, summary, enhanced_summary, key_insights, action_items = generate_brief_with_openai(
                 document_text=document_text,
                 title=title.replace('Brief: ', ''),
                 focus_areas=focus_areas,
@@ -197,7 +206,7 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
             )
             
             logger.info(f"OpenAI brief generation successful for document {document.id}")
-            return title, content, summary
+            return title, content, summary, enhanced_summary, key_insights, action_items
             
         except Exception as e:
             import traceback
@@ -225,7 +234,12 @@ def create_brief_content(document_text, document, custom_title=None, focus_areas
     # Generate a summary
     summary = generate_summary(sections)
     
-    return title, content, summary
+    # Default values for enhanced fields when not using OpenAI
+    enhanced_summary = "Enhanced summaries are only available with OpenAI integration."
+    key_insights = "- Consider enabling OpenAI integration for AI-powered insights\n- The traditional analysis provides basic legal context\n- Consult with legal professionals for detailed analysis"
+    action_items = "- Review the full brief content for detailed analysis\n- Consider the statutes mentioned in the document\n- Consult with legal counsel for specific advice"
+    
+    return title, content, summary, enhanced_summary, key_insights, action_items
 
 def generate_title(document_text, filename):
     """Generate a suitable title for the brief."""

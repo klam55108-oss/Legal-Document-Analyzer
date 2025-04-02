@@ -61,6 +61,54 @@
                 </div>
             </div>
             
+            <!-- Enhanced AI Summary -->
+            {% if brief.enhanced_summary %}
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info-subtle">
+                    <h5 class="mb-0">Enhanced AI Summary</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ brief.enhanced_summary }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Key Insights -->
+            {% if brief.key_insights %}
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary-subtle">
+                    <h5 class="mb-0">Key Legal Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div class="markdown-content">
+                        {% if brief.key_insights.startswith('-') %}
+                            <div id="keyInsightsMarkdown"></div>
+                        {% else %}
+                            <p>{{ brief.key_insights }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Action Items -->
+            {% if brief.action_items %}
+            <div class="card border-success mb-4">
+                <div class="card-header bg-success-subtle">
+                    <h5 class="mb-0">Recommended Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="markdown-content">
+                        {% if brief.action_items.startswith('-') %}
+                            <div id="actionItemsMarkdown"></div>
+                        {% else %}
+                            <p>{{ brief.action_items }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Document Info -->
             <div class="card border-secondary mb-4">
                 <div class="card-header">
@@ -146,6 +194,20 @@
             const briefContent = "{{ brief.content|escapejs }}";
             // Render the markdown using marked library
             briefMarkdown.innerHTML = marked.parse(briefContent);
+        }
+        
+        // Render markdown for key insights
+        const keyInsightsMarkdown = document.getElementById('keyInsightsMarkdown');
+        if (keyInsightsMarkdown) {
+            const keyInsightsContent = "{{ brief.key_insights|escapejs }}";
+            keyInsightsMarkdown.innerHTML = marked.parse(keyInsightsContent);
+        }
+        
+        // Render markdown for action items
+        const actionItemsMarkdown = document.getElementById('actionItemsMarkdown');
+        if (actionItemsMarkdown) {
+            const actionItemsContent = "{{ brief.action_items|escapejs }}";
+            actionItemsMarkdown.innerHTML = marked.parse(actionItemsContent);
         }
         
         // PDF download - placeholder functionality

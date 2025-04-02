@@ -61,6 +61,9 @@ class Brief(db.Model):
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
     summary = db.Column(db.Text, nullable=True)
+    enhanced_summary = db.Column(db.Text, nullable=True)  # AI-enhanced detailed summary
+    key_insights = db.Column(db.Text, nullable=True)  # Extracted key legal insights
+    action_items = db.Column(db.Text, nullable=True)  # Recommended actions
     generated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     
     # Foreign Keys
