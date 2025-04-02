@@ -66,6 +66,15 @@ def create_app():
         s = s.replace('"', '\\"')
         s = s.replace("'", "\\'")
         return s
+        
+    @app.context_processor
+    def utility_processor():
+        """Add utility functions to Jinja2 context."""
+        def get_env_var(name, default=''):
+            """Get an environment variable value, or return a default if not found."""
+            return os.environ.get(name, default)
+            
+        return dict(get_env_var=get_env_var)
     
     # Add database connection cleanup
     @app.teardown_request

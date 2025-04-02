@@ -1,0 +1,135 @@
+{% extends 'layout.html' %}
+
+{% block title %}Google Drive Integration Setup Guide{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Google Drive Integration Setup Guide</h1>
+    
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Setup Instructions</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i> 
+                <strong>Important:</strong> The 403 error you're seeing is because the Google OAuth client isn't properly configured.
+                Follow these steps to fix it.
+            </div>
+
+            <h4 class="mt-4 mb-3">Step 1: Note Your Redirect URI</h4>
+            <div class="alert alert-warning">
+                <p><strong>Your redirect URI is:</strong></p>
+                <code id="redirectUri">{{ redirect_uri }}</code>
+                <button class="btn btn-sm btn-secondary ms-2" onclick="copyToClipboard('#redirectUri')">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                
+                <div class="mt-3">
+                    <p><small>Debug information (if the above URI doesn't work):</small></p>
+                    <ul class="list-unstyled small">
+                        <li><strong>REPLIT_DEV_DOMAIN:</strong> <code>{{ get_env_var('REPLIT_DEV_DOMAIN') }}</code></li>
+                        <li><strong>REPLIT_HOSTNAME:</strong> <code>{{ get_env_var('REPLIT_HOSTNAME') }}</code></li>
+                        <li><strong>Alternative URI:</strong> <code>https://{{ get_env_var('REPLIT_DEV_DOMAIN') }}/integrations/google-drive/auth/callback</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <h4 class="mt-4 mb-3">Step 2: Configure Your Google Cloud Project</h4>
+            <ol class="list-group list-group-numbered mb-3">
+                <li class="list-group-item">Go to the <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console Credentials page</a></li>
+                <li class="list-group-item">Select your project or create a new one</li>
+                <li class="list-group-item">Click on "Create Credentials" and select "OAuth client ID"</li>
+                <li class="list-group-item">Select "Web application" as the application type</li>
+                <li class="list-group-item">Add a name for your OAuth client</li>
+                <li class="list-group-item">Under "Authorized redirect URIs", add the redirect URI shown above</li>
+                <li class="list-group-item">Click "Create" to save your OAuth client</li>
+                <li class="list-group-item">Copy the Client ID and Client Secret</li>
+            </ol>
+
+            <h4 class="mt-4 mb-3">Step 3: Update Your Environment Variables</h4>
+            <p>Make sure the following environment variables are set with the values from the Google Cloud Console:</p>
+            <ul class="list-group mb-3">
+                <li class="list-group-item">
+                    <strong>GOOGLE_OAUTH_CLIENT_ID</strong>: Your OAuth client ID
+                </li>
+                <li class="list-group-item">
+                    <strong>GOOGLE_OAUTH_CLIENT_SECRET</strong>: Your OAuth client secret
+                </li>
+                <li class="list-group-item">
+                    <strong>REDIRECT_URI</strong>: The redirect URI shown above
+                </li>
+            </ul>
+
+            <h4 class="mt-4 mb-3">Step 4: Enable the Google Drive API</h4>
+            <ol class="list-group list-group-numbered mb-3">
+                <li class="list-group-item">Go to the <a href="https://console.cloud.google.com/apis/library" target="_blank">Google Cloud Console API Library</a></li>
+                <li class="list-group-item">Search for "Google Drive API"</li>
+                <li class="list-group-item">Click on the Google Drive API and enable it for your project</li>
+            </ol>
+
+            <div class="alert alert-success mt-4">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Once you've completed these steps:</strong> Try connecting to Google Drive again.
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{{ url_for('integrations') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Integrations
+                </a>
+                <a href="{{ url_for('google_drive.index') }}" class="btn btn-primary">
+                    <i class="fas fa-sync me-1"></i> Try Again
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Troubleshooting</h5>
+        </div>
+        <div class="card-body">
+            <h5>Common Issues</h5>
+            <ul class="list-group mb-3">
+                <li class="list-group-item">
+                    <strong>403 Error:</strong> The redirect URI in your Google Cloud Console doesn't match the one used by this application.
+                </li>
+                <li class="list-group-item">
+                    <strong>Invalid Client:</strong> The client ID or client secret is incorrect.
+                </li>
+                <li class="list-group-item">
+                    <strong>API Not Enabled:</strong> The Google Drive API hasn't been enabled for your project.
+                </li>
+            </ul>
+
+            <h5 class="mt-4">Validating Your Configuration</h5>
+            <ol class="list-group list-group-numbered">
+                <li class="list-group-item">Double-check that your redirect URI exactly matches what's in the Google Cloud Console (including http/https)</li>
+                <li class="list-group-item">Verify that your Client ID and Client Secret are correct and properly set in the environment</li>
+                <li class="list-group-item">Make sure you've enabled the Google Drive API in your project</li>
+                <li class="list-group-item">Check that your Google Cloud Platform project has been published (not in testing)</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(element) {
+    const $temp = $("<input>");
+    $("body").append($temp);
+    $temp.val($(element).text()).select();
+    document.execCommand("copy");
+    $temp.remove();
+    
+    // Show a temporary "Copied!" message
+    const $btn = $(element).next('button');
+    const originalHtml = $btn.html();
+    $btn.html('<i class="fas fa-check"></i> Copied!');
+    setTimeout(function() {
+        $btn.html(originalHtml);
+    }, 2000);
+}
+</script>
+{% endblock %}

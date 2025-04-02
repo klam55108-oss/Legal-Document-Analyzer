@@ -35,10 +35,22 @@ google_drive_bp = Blueprint('google_drive', __name__, url_prefix='/integrations/
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET')
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+# Get the most appropriate domain for the redirect URI
+# Try REPLIT_HOSTNAME first (production), then fall back to REPLIT_DEV_DOMAIN (development)
+DOMAIN = os.environ.get('REPLIT_HOSTNAME')
+if not DOMAIN:
+    DOMAIN = os.environ.get('REPLIT_DEV_DOMAIN')
+if not DOMAIN:
+    # Last resort fallback
+    DOMAIN = 'legaldatainsights.replit.app'
+
+# Full redirect URI for OAuth callback - use custom REDIRECT_URI if provided
 REDIRECT_URI = os.environ.get('REDIRECT_URI')
 if not REDIRECT_URI:
-    # Default fallback for development environment
-    REDIRECT_URI = f"https://{os.environ.get('REPLIT_DEV_DOMAIN', 'legaldatainsights.replit.app')}/integrations/google-drive/auth/callback"
+    REDIRECT_URI = f"https://{DOMAIN}/integrations/google-drive/auth/callback"
+    
+logger.info(f"Google Drive OAuth redirect URI: {REDIRECT_URI}")
 
 # Check if required environment variables are set
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
@@ -104,6 +116,14 @@ def index():
     
     return redirect(url_for('google_drive.list_files'))
 
+@google_drive_bp.route('/setup-guide')
+@login_required
+def setup_guide():
+    """Display setup guide for Google OAuth."""
+    # Show the actual redirect URI that needs to be configured in Google Cloud Console
+    redirect_uri = REDIRECT_URI
+    return render_template('google_setup_guide.html', redirect_uri=redirect_uri)
+
 @google_drive_bp.route('/auth')
 @login_required
 def auth():
@@ -157,8 +177,15 @@ def callback():
         return redirect(url_for('google_drive.list_files'))
     
     except Exception as e:
-        logger.error(f"Error in Google OAuth callback: {str(e)}")
-        flash(f'Authentication failed: {str(e)}', 'danger')
+        error_str = str(e)
+        logger.error(f"Error in Google OAuth callback: {error_str}")
+        
+        # If we get a 403 error, redirect to the setup guide
+        if "403" in error_str:
+            flash('Google authentication failed with a 403 error. This typically means your OAuth client is not properly configured.', 'danger')
+            return redirect(url_for('google_drive.setup_guide'))
+        
+        flash(f'Authentication failed: {error_str}', 'danger')
         return redirect(url_for('google_drive.index'))
 
 @google_drive_bp.route('/files')
