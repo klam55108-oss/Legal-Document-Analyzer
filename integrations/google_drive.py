@@ -38,7 +38,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 REDIRECT_URI = os.environ.get('REDIRECT_URI')
 if not REDIRECT_URI:
     # Default fallback for development environment
-    REDIRECT_URI = f"https://{os.environ.get('REPL_SLUG', 'legaldatainsights')}.{os.environ.get('REPL_OWNER', 'replit')}.repl.co/integrations/google-drive/auth/callback"
+    REDIRECT_URI = f"https://{os.environ.get('REPLIT_DEV_DOMAIN', 'legaldatainsights.replit.app')}/integrations/google-drive/auth/callback"
 
 # Check if required environment variables are set
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
@@ -129,7 +129,9 @@ def callback():
     
     try:
         flow = create_flow()
-        flow.fetch_token(authorization_response=request.url)
+        # Make sure we're using https for the callback URL even if forwarded through http
+        authorization_response = request.url.replace('http://', 'https://')
+        flow.fetch_token(authorization_response=authorization_response)
         credentials = flow.credentials
         
         # Save credentials to database
