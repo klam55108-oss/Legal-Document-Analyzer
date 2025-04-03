@@ -79,10 +79,10 @@ def get_or_create_base(access_token, base_name, workspace_id=None):
     
     # List all bases to see if one already exists with this name
     try:
-        bases = airtable.get_bases()
+        bases = airtable.bases()
         for base in bases:
-            if base.get('name') == base_name:
-                return base
+            if base.name == base_name:
+                return {'id': base.id, 'name': base.name}
         
         # If we get here, no base exists with that name, so create one
         return create_base(access_token, base_name, workspace_id)
@@ -126,7 +126,7 @@ def connect():
         try:
             # Test the token by trying to list bases
             airtable = Api(access_token)
-            bases = airtable.get_bases()
+            bases = airtable.bases()
             
             # Save the credentials
             cred = AirtableCredential.query.filter_by(user_id=current_user.id).first()
@@ -251,7 +251,9 @@ def select_base():
     # Get list of available bases
     try:
         airtable = create_airtable_client(credentials['access_token'])
-        bases = airtable.get_bases()
+        bases_list = airtable.bases()
+        # Convert to the format expected by the template
+        bases = [{'id': base.id, 'name': base.name} for base in bases_list]
         return render_template('airtable/select_base.html', bases=bases)
     
     except Exception as e:
