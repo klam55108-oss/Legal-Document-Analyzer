@@ -29,6 +29,12 @@ class User(UserMixin, db.Model):
     
     def __repr__(self):
         return f'<User {self.username}>'
+    
+    def generate_api_key(self):
+        """Generate a new API key for the user."""
+        import secrets
+        self.api_key = secrets.token_hex(16)  # 32 character hex string
+        return self.api_key
 
 class Document(db.Model):
     __tablename__ = 'documents'

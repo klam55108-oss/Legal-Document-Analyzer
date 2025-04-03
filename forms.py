@@ -50,3 +50,6 @@ class KnowledgeSearchForm(CSRFDisabledForm):
     query = StringField('Search Knowledge Base', validators=[Length(max=100)])
     tags = SelectMultipleField('Filter by Tags')
     submit = SubmitField('Search')
+    
+class ApiKeyForm(CSRFDisabledForm):
+    submit = SubmitField('Generate API Key')

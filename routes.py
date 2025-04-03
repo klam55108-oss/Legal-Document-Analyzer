@@ -20,6 +20,8 @@ from services.knowledge_service import (
     get_trending_tags
 )
 from services.onboarding_service import OnboardingService
+from forms import CSRFDisabledForm
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -468,18 +470,58 @@ def setup_web_routes(app):
     def api_docs():
         """Display API documentation and the user's API key."""
         return render_template('api_docs.html', api_key=current_user.api_key)
+    
+    @app.route('/api-settings')
+    @login_required
+    def api_settings():
+        """Display API settings and management interface."""
+        from forms import ApiKeyForm
+        
+        form = ApiKeyForm()
+        
+        # Construct the base API URL for the application
+        if request.environ.get('HTTP_X_FORWARDED_PROTO'):
+            # For hosted environments with proxy
+            base_url = request.environ.get('HTTP_X_FORWARDED_PROTO') + '://' + request.environ.get('HTTP_HOST')
+        else:
+            # For local development
+            base_url = request.scheme + '://' + request.host
+            
+        api_url = base_url + '/api'
+        
+        # Generate an API key if the user doesn't have one
+        if not current_user.api_key:
+            current_user.generate_api_key()
+            db.session.commit()
+            flash('An API key has been automatically generated for you.', 'info')
+            
+        return render_template('api_settings.html', form=form, api_url=api_url)
+        
+    @app.route('/generate-api-key', methods=['POST'])
+    @login_required
+    def generate_api_key():
+        """Generate an API key for the current user if they don't have one."""
+        from app import db
+        
+        if not current_user.api_key:
+            current_user.generate_api_key()
+            db.session.commit()
+            flash('Your API key has been generated.', 'success')
+        else:
+            flash('You already have an API key.', 'info')
+            
+        return redirect(url_for('api_settings'))
         
     @app.route('/regenerate-api-key', methods=['POST'])
     @login_required
-    def regenerate_api_key():
+    def reset_api_key():
         """Regenerate the API key for the current user."""
-        import uuid
-        from app import db  # Import db at the beginning
+        from app import db
         
-        current_user.api_key = str(uuid.uuid4())
+        current_user.generate_api_key()
         db.session.commit()
-        flash('Your API key has been regenerated.', 'success')
-        return redirect(url_for('api_docs'))
+        flash('Your API key has been reset.', 'success')
+        return redirect(url_for('api_settings'))
     
     @app.route('/downloads/<path:filename>')
     @login_required
@@ -760,6 +802,18 @@ def setup_web_routes(app):
                 
         return render_template('plugins.html', plugins=plugins)
         
+    @app.route('/api/plugins/google-docs/download')
+    @login_required
+    def download_google_docs_plugin():
+        """Download the Google Docs plugin package."""
+        return redirect(url_for('download_plugin', plugin_name='google_docs'))
+        
+    @app.route('/api/plugins/ms-word/download')
+    @login_required
+    def download_ms_word_plugin():
+        """Download the Microsoft Word plugin package."""
+        return redirect(url_for('download_plugin', plugin_name='ms_word'))
+    
     @app.route('/plugins/<plugin_name>/download')
     @login_required
     def download_plugin(plugin_name):
