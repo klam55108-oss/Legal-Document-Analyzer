@@ -27,6 +27,7 @@ class BriefListResource(Resource):
                     'id': brief.id,
                     'title': brief.title,
                     'summary': brief.summary,
+                    'enhanced_summary': brief.enhanced_summary,
                     'generated_at': brief.generated_at.isoformat(),
                     'document_id': brief.document_id
                 }
@@ -70,6 +71,9 @@ class BriefListResource(Resource):
                 'id': brief.id,
                 'title': brief.title,
                 'summary': brief.summary,
+                'enhanced_summary': brief.enhanced_summary,
+                'key_insights': brief.key_insights,
+                'action_items': brief.action_items,
                 'document_id': brief.document_id,
                 'generated_at': brief.generated_at.isoformat()
             }, 201
@@ -93,6 +97,9 @@ class BriefResource(Resource):
             'title': brief.title,
             'content': brief.content,
             'summary': brief.summary,
+            'enhanced_summary': brief.enhanced_summary,
+            'key_insights': brief.key_insights,
+            'action_items': brief.action_items,
             'generated_at': brief.generated_at.isoformat(),
             'document_id': brief.document_id,
             'document_filename': brief.document.original_filename

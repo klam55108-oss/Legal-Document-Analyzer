@@ -1,6 +1,7 @@
 """
 API client for Legal Document Analyzer plugins.
 """
+import os
 import requests
 import json
 from plugins.common.utils import logger
@@ -42,13 +43,14 @@ class APIClient:
         url = f"{self.api_url}/{endpoint.lstrip('/')}"
         logger.info(f"GET {url}")
         
+        response = None
         try:
             response = self.session.get(url, params=params)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {str(e)}")
-            if response.text:
+            if response and response.text:
                 logger.error(f"Response: {response.text}")
             raise
     
@@ -75,6 +77,7 @@ class APIClient:
             # Remove Content-Type header when uploading files
             headers = {'X-API-Key': self.api_key}
         
+        response = None
         try:
             if files:
                 response = requests.post(url, data=data, files=files, headers=headers)
@@ -85,7 +88,7 @@ class APIClient:
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {str(e)}")
-            if response.text:
+            if response and response.text:
                 logger.error(f"Response: {response.text}")
             raise
     
@@ -106,13 +109,14 @@ class APIClient:
         url = f"{self.api_url}/{endpoint.lstrip('/')}"
         logger.info(f"PUT {url}")
         
+        response = None
         try:
             response = self.session.put(url, json=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {str(e)}")
-            if response.text:
+            if response and response.text:
                 logger.error(f"Response: {response.text}")
             raise
     
@@ -133,6 +137,7 @@ class APIClient:
         url = f"{self.api_url}/{endpoint.lstrip('/')}"
         logger.info(f"DELETE {url}")
         
+        response = None
         try:
             response = self.session.delete(url, params=params)
             response.raise_for_status()
@@ -147,6 +152,148 @@ class APIClient:
                 return {'success': True}
         except requests.exceptions.RequestException as e:
             logger.error(f"API request failed: {str(e)}")
-            if response.text:
+            if response and response.text:
                 logger.error(f"Response: {response.text}")
             raise
+    
+    # Specific API methods for Legal Document Analyzer
+    
+    def upload_document(self, file_path):
+        """
+        Upload a document to the API.
+        
+        Args:
+            file_path (str): Path to the document file
+            
+        Returns:
+            dict: Upload response data
+        """
+        logger.info(f"Uploading document: {file_path}")
+        
+        with open(file_path, 'rb') as f:
+            files = {'file': (os.path.basename(file_path), f)}
+            return self.post('api/integrations/upload', files=files)
+    
+    def generate_brief(self, document_id, title=None, focus_areas=None):
+        """
+        Generate a brief from a document.
+        
+        Args:
+            document_id (int): Document ID
+            title (str, optional): Custom title for the brief
+            focus_areas (list, optional): Areas to focus on in the brief
+            
+        Returns:
+            dict: Brief generation response data
+        """
+        data = {'document_id': document_id}
+        
+        if title:
+            data['title'] = title
+            
+        if focus_areas:
+            data['focus_areas'] = focus_areas
+            
+        return self.post('api/briefs', data)
+    
+    def get_brief(self, brief_id):
+        """
+        Get a specific brief.
+        
+        Args:
+            brief_id (int): Brief ID
+            
+        Returns:
+            dict: Brief data
+        """
+        return self.get(f'api/briefs/{brief_id}')
+    
+    def get_briefs(self, page=1, per_page=10):
+        """
+        Get a list of briefs.
+        
+        Args:
+            page (int, optional): Page number
+            per_page (int, optional): Number of items per page
+            
+        Returns:
+            dict: List of briefs
+        """
+        # Create a new params dictionary with string keys and values
+        params = {
+            'page': str(page), 
+            'per_page': str(per_page)
+        }
+        
+        return self.get('api/briefs', params)
+    
+    def get_statutes(self, document_id=None, is_current=None, page=1, per_page=20):
+        """
+        Get a list of statutes.
+        
+        Args:
+            document_id (int, optional): Filter by document ID
+            is_current (bool, optional): Filter by current status
+            page (int, optional): Page number
+            per_page (int, optional): Number of items per page
+            
+        Returns:
+            dict: List of statutes
+        """
+        # Create a new params dictionary with string keys and values
+        params = {
+            'page': str(page), 
+            'per_page': str(per_page)
+        }
+        
+        if document_id is not None:
+            params['document_id'] = str(document_id)
+            
+        if is_current is not None:
+            # Convert boolean to string for URL parameter
+            params['is_current'] = str(is_current).lower()
+            
+        return self.get('api/statutes', params)
+    
+    def get_statute(self, statute_id):
+        """
+        Get a specific statute.
+        
+        Args:
+            statute_id (int): Statute ID
+            
+        Returns:
+            dict: Statute data
+        """
+        return self.get(f'api/statutes/{statute_id}')
+    
+    def revalidate_statute(self, statute_id):
+        """
+        Revalidate a statute.
+        
+        Args:
+            statute_id (int): Statute ID
+            
+        Returns:
+            dict: Updated statute data
+        """
+        return self.put(f'api/statutes/{statute_id}')
+    
+    def get_outdated_statutes(self, page=1, per_page=20):
+        """
+        Get a list of outdated statutes.
+        
+        Args:
+            page (int, optional): Page number
+            per_page (int, optional): Number of items per page
+            
+        Returns:
+            dict: List of outdated statutes
+        """
+        # Create a new params dictionary with string keys and values
+        params = {
+            'page': str(page), 
+            'per_page': str(per_page)
+        }
+        
+        return self.get('api/statutes/outdated', params)
