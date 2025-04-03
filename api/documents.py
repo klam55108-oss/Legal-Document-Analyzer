@@ -4,7 +4,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from api.auth import auth, require_api_key
-from models import Document, Statute
+from models import Document, Statute, User
 from services.document_parser import document_parser, is_allowed_file
 from services.text_analysis import analyze_document, store_statutes
 from services.statute_validator import validate_statutes
@@ -56,9 +56,22 @@ class DocumentListResource(Resource):
         
         return result
     
-    @auth.login_required
     def post(self):
         """Upload and process a new document."""
+        # First try to authenticate with API key
+        api_key = request.headers.get('X-API-Key')
+        if api_key:
+            user = User.query.filter_by(api_key=api_key).first()
+            if user:
+                g.current_user = user
+            else:
+                return {'error': 'Invalid API key'}, 401
+        else:
+            # If no API key, try to use bearer token authentication
+            auth_result = auth.current_user()
+            if not auth_result:
+                return {'error': 'Authentication required. Use either API key or Bearer token.'}, 401
+        
         # Check if the post request has the file part
         if 'file' not in request.files:
             return {'error': 'No file part in the request'}, 400
@@ -210,6 +223,12 @@ def setup_document_routes(app, api):
     """Register the document routes with the API."""
     api.add_resource(DocumentListResource, '/api/documents')
     api.add_resource(DocumentResource, '/api/documents/<int:document_id>')
+    
+    # Register direct route for Google Docs plugin to use
+    @app.route('/api/documents', methods=['POST'])
+    def direct_document_upload():
+        """Direct endpoint for document upload via API key."""
+        return DocumentListResource().post()
     
     # Additional endpoint for MS Word and other integrations
     @app.route('/api/integrations/upload', methods=['POST'])
