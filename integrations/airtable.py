@@ -2,7 +2,7 @@
 Airtable integration service for Legal Data Insights.
 
 This module provides functionality to:
-1. Connect to Airtable using API key
+1. Connect to Airtable using Personal Access Token
 2. Sync documents and knowledge entries with Airtable bases
 3. Create new records in Airtable from app data
 4. Import data from Airtable into the application
@@ -41,18 +41,18 @@ def get_airtable_credentials(user_id):
         return None
     
     return {
-        'api_key': cred.api_key,
+        'access_token': cred.access_token,
         'base_id': cred.base_id, 
         'workspace_id': cred.workspace_id
     }
 
-def create_airtable_client(api_key):
-    """Create an Airtable API client."""
-    return Api(api_key)
+def create_airtable_client(access_token):
+    """Create an Airtable API client with a Personal Access Token."""
+    return Api(access_token)
 
-def create_base(api_key, base_name, workspace_id=None):
+def create_base(access_token, base_name, workspace_id=None):
     """Create a new Airtable base."""
-    airtable = create_airtable_client(api_key)
+    airtable = create_airtable_client(access_token)
     
     # Create the base
     try:
@@ -73,9 +73,9 @@ def create_base(api_key, base_name, workspace_id=None):
         logger.error(f"Error creating Airtable base: {str(e)}")
         raise
 
-def get_or_create_base(api_key, base_name, workspace_id=None):
+def get_or_create_base(access_token, base_name, workspace_id=None):
     """Get an existing base or create a new one."""
-    airtable = create_airtable_client(api_key)
+    airtable = create_airtable_client(access_token)
     
     # List all bases to see if one already exists with this name
     try:
@@ -85,7 +85,7 @@ def get_or_create_base(api_key, base_name, workspace_id=None):
                 return base
         
         # If we get here, no base exists with that name, so create one
-        return create_base(api_key, base_name, workspace_id)
+        return create_base(access_token, base_name, workspace_id)
     except Exception as e:
         logger.error(f"Error getting or creating Airtable base: {str(e)}")
         raise
@@ -96,7 +96,7 @@ def index():
     """Main page for Airtable integration."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key'):
+    if not credentials or not credentials.get('access_token'):
         return render_template('airtable/index.html', connected=False)
     
     # If we have credentials, show sync options
@@ -113,25 +113,25 @@ def setup_guide():
 @airtable_bp.route('/connect', methods=['GET', 'POST'])
 @login_required
 def connect():
-    """Connect to Airtable using API key."""
+    """Connect to Airtable using Personal Access Token."""
     if request.method == 'POST':
-        api_key = request.form.get('api_key')
+        access_token = request.form.get('api_key')  # Keep form field name for compatibility
         base_id = request.form.get('base_id')
         workspace_id = request.form.get('workspace_id')
         
-        if not api_key:
-            flash('API key is required.', 'danger')
+        if not access_token:
+            flash('Personal Access Token is required.', 'danger')
             return redirect(url_for('airtable.connect'))
         
         try:
-            # Test the API key by trying to list bases
-            airtable = Api(api_key)
+            # Test the token by trying to list bases
+            airtable = Api(access_token)
             bases = airtable.get_bases()
             
             # Save the credentials
             cred = AirtableCredential.query.filter_by(user_id=current_user.id).first()
             if cred:
-                cred.api_key = api_key
+                cred.access_token = access_token
                 if base_id:
                     cred.base_id = base_id
                 if workspace_id:
@@ -139,7 +139,7 @@ def connect():
             else:
                 cred = AirtableCredential(
                     user_id=current_user.id,
-                    api_key=api_key,
+                    access_token=access_token,
                     base_id=base_id,
                     workspace_id=workspace_id,
                     created_at=datetime.utcnow()
@@ -163,7 +163,7 @@ def dashboard():
     """Dashboard for Airtable integration."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key'):
+    if not credentials or not credentials.get('access_token'):
         flash('Please connect to Airtable first.', 'warning')
         return redirect(url_for('airtable.connect'))
     
@@ -173,7 +173,7 @@ def dashboard():
     
     # Get some stats on what's already synced
     try:
-        airtable = create_airtable_client(credentials['api_key'])
+        airtable = create_airtable_client(credentials['access_token'])
         base = Base(airtable, credentials['base_id'])
         
         table_stats = {}
@@ -200,7 +200,7 @@ def select_base():
     """Select or create an Airtable base."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key'):
+    if not credentials or not credentials.get('access_token'):
         flash('Please connect to Airtable first.', 'warning')
         return redirect(url_for('airtable.connect'))
     
@@ -230,7 +230,7 @@ def select_base():
             try:
                 # Create the base
                 new_base = create_base(
-                    credentials['api_key'], 
+                    credentials['access_token'], 
                     base_name,
                     credentials.get('workspace_id')
                 )
@@ -250,7 +250,7 @@ def select_base():
     
     # Get list of available bases
     try:
-        airtable = create_airtable_client(credentials['api_key'])
+        airtable = create_airtable_client(credentials['access_token'])
         bases = airtable.get_bases()
         return render_template('airtable/select_base.html', bases=bases)
     
@@ -265,12 +265,12 @@ def sync_documents():
     """Sync documents with Airtable."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key') or not credentials.get('base_id'):
+    if not credentials or not credentials.get('access_token') or not credentials.get('base_id'):
         flash('Please connect to Airtable and select a base first.', 'warning')
         return redirect(url_for('airtable.index'))
     
     try:
-        airtable = create_airtable_client(credentials['api_key'])
+        airtable = create_airtable_client(credentials['access_token'])
         documents_table = Table(airtable, credentials['base_id'], 'Documents')
         
         # Get documents for the current user
@@ -310,12 +310,12 @@ def sync_knowledge():
     """Sync knowledge entries with Airtable."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key') or not credentials.get('base_id'):
+    if not credentials or not credentials.get('access_token') or not credentials.get('base_id'):
         flash('Please connect to Airtable and select a base first.', 'warning')
         return redirect(url_for('airtable.index'))
     
     try:
-        airtable = create_airtable_client(credentials['api_key'])
+        airtable = create_airtable_client(credentials['access_token'])
         knowledge_table = Table(airtable, credentials['base_id'], 'Knowledge Entries')
         
         # Get knowledge entries for the current user
@@ -362,7 +362,7 @@ def import_from_airtable():
     """Import data from Airtable into the application."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key') or not credentials.get('base_id'):
+    if not credentials or not credentials.get('access_token') or not credentials.get('base_id'):
         flash('Please connect to Airtable and select a base first.', 'warning')
         return redirect(url_for('airtable.index'))
     
@@ -375,12 +375,12 @@ def import_knowledge():
     """Import knowledge entries from Airtable."""
     credentials = get_airtable_credentials(current_user.id)
     
-    if not credentials or not credentials.get('api_key') or not credentials.get('base_id'):
+    if not credentials or not credentials.get('access_token') or not credentials.get('base_id'):
         flash('Please connect to Airtable and select a base first.', 'warning')
         return redirect(url_for('airtable.index'))
     
     try:
-        airtable = create_airtable_client(credentials['api_key'])
+        airtable = create_airtable_client(credentials['access_token'])
         knowledge_table = Table(airtable, credentials['base_id'], 'Knowledge Entries')
         
         # Get all records from the Knowledge Entries table

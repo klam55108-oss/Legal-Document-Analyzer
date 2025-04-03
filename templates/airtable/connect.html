@@ -14,15 +14,15 @@
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info" role="alert">
-                        <i class="fas fa-info-circle me-2"></i>Enter your Airtable API key to connect your account.
+                        <i class="fas fa-info-circle me-2"></i>Enter your Airtable Personal Access Token to connect your account.
                     </div>
                     
                     <form method="POST" action="{{ url_for('airtable.connect') }}">
                         <div class="mb-3">
-                            <label for="api_key" class="form-label">Airtable API Key <span class="text-danger">*</span></label>
+                            <label for="api_key" class="form-label">Airtable Personal Access Token <span class="text-danger">*</span></label>
                             <input type="password" class="form-control" id="api_key" name="api_key" required
                                    placeholder="pat****************">
-                            <div class="form-text">Your API key provides full access to your Airtable account. Never share it.</div>
+                            <div class="form-text">Your Personal Access Token provides access to your Airtable account. Never share it.</div>
                         </div>
                         
                         <div class="accordion mb-3" id="advancedOptions">

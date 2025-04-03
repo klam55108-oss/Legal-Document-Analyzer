@@ -20,16 +20,17 @@
                     <h5 class="mt-3">Step 1: Create an Airtable Account</h5>
                     <p>If you don't already have an Airtable account, sign up at <a href="https://airtable.com" target="_blank">airtable.com</a>.</p>
                     
-                    <h5 class="mt-3">Step 2: Generate an API Key</h5>
+                    <h5 class="mt-3">Step 2: Generate a Personal Access Token</h5>
                     <ol>
                         <li>Log in to your Airtable account</li>
-                        <li>Navigate to your <a href="https://airtable.com/account" target="_blank">account page</a></li>
-                        <li>Under the API section, click "Generate API key" if you don't already have one</li>
-                        <li>Copy your API key for use in the next step</li>
+                        <li>Navigate to your <a href="https://airtable.com/create/tokens" target="_blank">Personal Access Tokens page</a></li>
+                        <li>Click "Create new token"</li>
+                        <li>Name your token and select the necessary scopes (data.records:read, data.records:write, schema.bases:read, schema.bases:write)</li>
+                        <li>Copy your Personal Access Token for use in the next step</li>
                     </ol>
                     
                     <h5 class="mt-3">Step 3: Connect to LegalDataInsights</h5>
-                    <p>Return to our application and enter your API key to connect your Airtable account.</p>
+                    <p>Return to our application and enter your Personal Access Token to connect your Airtable account.</p>
                     
                     <h5 class="mt-3">Step 4: Configure Your Base</h5>
                     <p>You can either:</p>
@@ -39,7 +40,7 @@
                     </ul>
                     
                     <div class="alert alert-warning mt-3" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>Important: For security reasons, your Airtable API key provides complete access to all your Airtable bases. Keep it secure and never share it with others.
+                        <i class="fas fa-exclamation-triangle me-2"></i>Important: For security reasons, your Airtable Personal Access Token provides access to your Airtable bases according to the scopes you've granted. Keep it secure and never share it with others.
                     </div>
                     
                     <div class="d-grid gap-2 mt-4">

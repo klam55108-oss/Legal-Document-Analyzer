@@ -222,7 +222,7 @@ class AirtableCredential(db.Model):
     __tablename__ = 'airtable_credentials'
     
     id = db.Column(db.Integer, primary_key=True)
-    api_key = db.Column(db.String(255), nullable=False)
+    access_token = db.Column(db.String(255), nullable=False)  # Personal Access Token (PAT)
     base_id = db.Column(db.String(255), nullable=True)
     workspace_id = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
