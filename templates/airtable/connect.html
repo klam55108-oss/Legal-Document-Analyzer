@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block title %}Connect to Airtable{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-plug me-2"></i>Connect to Airtable
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>Enter your Airtable API key to connect your account.
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('airtable.connect') }}">
+                        <div class="mb-3">
+                            <label for="api_key" class="form-label">Airtable API Key <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="api_key" name="api_key" required
+                                   placeholder="pat****************">
+                            <div class="form-text">Your API key provides full access to your Airtable account. Never share it.</div>
+                        </div>
+                        
+                        <div class="accordion mb-3" id="advancedOptions">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="headingAdvanced">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapseAdvanced" aria-expanded="false" aria-controls="collapseAdvanced">
+                                        Advanced Options (Optional)
+                                    </button>
+                                </h2>
+                                <div id="collapseAdvanced" class="accordion-collapse collapse" aria-labelledby="headingAdvanced"
+                                     data-bs-parent="#advancedOptions">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label for="base_id" class="form-label">Existing Base ID</label>
+                                            <input type="text" class="form-control" id="base_id" name="base_id"
+                                                   placeholder="app***********">
+                                            <div class="form-text">Optional: Connect to an existing base. If left blank, you'll have the option to create a new base.</div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="workspace_id" class="form-label">Workspace ID</label>
+                                            <input type="text" class="form-control" id="workspace_id" name="workspace_id"
+                                                   placeholder="wsp***********">
+                                            <div class="form-text">Optional: The workspace where a new base should be created. If left blank, the default workspace will be used.</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-link me-2"></i>Connect Account
+                            </button>
+                            <a href="{{ url_for('airtable.index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

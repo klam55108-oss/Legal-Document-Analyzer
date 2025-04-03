@@ -216,3 +216,23 @@ class GoogleCredential(db.Model):
     
     def __repr__(self):
         return f'<GoogleCredential user_id={self.user_id}>'
+        
+        
+class AirtableCredential(db.Model):
+    __tablename__ = 'airtable_credentials'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    api_key = db.Column(db.String(255), nullable=False)
+    base_id = db.Column(db.String(255), nullable=True)
+    workspace_id = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    
+    # Foreign Keys
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('airtable_credential', uselist=False, cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<AirtableCredential user_id={self.user_id}>'

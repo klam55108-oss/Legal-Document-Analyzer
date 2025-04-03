@@ -151,6 +151,14 @@ def create_app():
         except ImportError as e:
             logger.warning(f"Google Drive integration not registered due to missing dependencies: {str(e)}")
         
+        # Register Airtable integration
+        try:
+            from integrations.airtable import register_blueprint as register_airtable_blueprint
+            register_airtable_blueprint(app)
+            logger.info("Airtable integration registered successfully")
+        except ImportError as e:
+            logger.warning(f"Airtable integration not registered due to missing dependencies: {str(e)}")
+        
         # Initialize ML service
         from services.ml_service import ml_service
         

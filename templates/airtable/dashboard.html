@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+
+{% block title %}Airtable Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-columns me-2"></i>Airtable Dashboard
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>Your Airtable account is connected.
+                        {% if base_id %}
+                            <br>Base ID: <strong>{{ base_id }}</strong>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Export Data to Airtable</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Send your legal data to Airtable for collaboration and organization.</p>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('airtable.sync_documents') }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-file-export me-2"></i>Sync Documents
+                                        </a>
+                                        <a href="{{ url_for('airtable.sync_knowledge') }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-brain me-2"></i>Sync Knowledge Entries
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Import from Airtable</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p>Import data from your Airtable base into LegalDataInsights.</p>
+                                    <div class="d-grid gap-2">
+                                        <a href="{{ url_for('airtable.import_from_airtable') }}" class="btn btn-outline-primary">
+                                            <i class="fas fa-file-import me-2"></i>Import Data
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if table_stats %}
+                        <div class="card mb-4">
+                            <div class="card-header bg-light">
+                                <h5 class="card-title mb-0">Airtable Sync Status</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Table</th>
+                                                <th>Records</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for table_name, count in table_stats.items() %}
+                                                <tr>
+                                                    <td>{{ table_name }}</td>
+                                                    <td>{{ count }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="card-title mb-0">Manage Connection</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                {% if not base_id %}
+                                    <a href="{{ url_for('airtable.select_base') }}" class="btn btn-primary">
+                                        <i class="fas fa-database me-2"></i>Select or Create Base
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('airtable.select_base') }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-exchange-alt me-2"></i>Switch Base
+                                    </a>
+                                {% endif %}
+                                <a href="{{ url_for('airtable.disconnect') }}" class="btn btn-outline-danger"
+                                   onclick="return confirm('Are you sure you want to disconnect your Airtable account?');">
+                                    <i class="fas fa-unlink me-2"></i>Disconnect Airtable
+                                </a>
+                                <a href="{{ url_for('airtable.index') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Integration Page
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

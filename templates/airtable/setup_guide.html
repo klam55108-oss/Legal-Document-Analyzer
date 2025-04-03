@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block title %}Airtable Setup Guide{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-book me-2"></i>Airtable Setup Guide
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>Follow these steps to set up your Airtable integration
+                    </div>
+                    
+                    <h5 class="mt-3">Step 1: Create an Airtable Account</h5>
+                    <p>If you don't already have an Airtable account, sign up at <a href="https://airtable.com" target="_blank">airtable.com</a>.</p>
+                    
+                    <h5 class="mt-3">Step 2: Generate an API Key</h5>
+                    <ol>
+                        <li>Log in to your Airtable account</li>
+                        <li>Navigate to your <a href="https://airtable.com/account" target="_blank">account page</a></li>
+                        <li>Under the API section, click "Generate API key" if you don't already have one</li>
+                        <li>Copy your API key for use in the next step</li>
+                    </ol>
+                    
+                    <h5 class="mt-3">Step 3: Connect to LegalDataInsights</h5>
+                    <p>Return to our application and enter your API key to connect your Airtable account.</p>
+                    
+                    <h5 class="mt-3">Step 4: Configure Your Base</h5>
+                    <p>You can either:</p>
+                    <ul>
+                        <li>Create a new Airtable base (recommended)</li>
+                        <li>Connect to an existing base if you already have a suitable structure</li>
+                    </ul>
+                    
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Important: For security reasons, your Airtable API key provides complete access to all your Airtable bases. Keep it secure and never share it with others.
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <a href="{{ url_for('airtable.connect') }}" class="btn btn-primary">
+                            <i class="fas fa-plug me-2"></i>Proceed to Connection
+                        </a>
+                        <a href="{{ url_for('airtable.index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Integration
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

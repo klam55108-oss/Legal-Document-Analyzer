@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block title %}Airtable Integration{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>Airtable Integration
+                    </h2>
+                </div>
+                <div class="card-body">
+                    {% if connected %}
+                        <div class="alert alert-success" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>Your Airtable account is connected!
+                        </div>
+                        <p>Use the options below to sync your data with Airtable or manage your connection.</p>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('airtable.dashboard') }}" class="btn btn-primary">
+                                <i class="fas fa-columns me-2"></i>Go to Dashboard
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>Connect your Airtable account to start syncing your legal data.
+                        </div>
+                        <p>Airtable integration allows you to:</p>
+                        <ul>
+                            <li>Sync your documents to Airtable</li>
+                            <li>Export knowledge entries to Airtable</li>
+                            <li>Import data from Airtable into LegalDataInsights</li>
+                            <li>Collaborate with your team using Airtable's powerful features</li>
+                        </ul>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('airtable.setup_guide') }}" class="btn btn-outline-secondary mb-2">
+                                <i class="fas fa-book me-2"></i>Setup Guide
+                            </a>
+                            <a href="{{ url_for('airtable.connect') }}" class="btn btn-primary">
+                                <i class="fas fa-plug me-2"></i>Connect to Airtable
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
